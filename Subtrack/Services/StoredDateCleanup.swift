@@ -1,0 +1,48 @@
+import Foundation
+
+/// Rydder lagrede datoer fra før skjemaet begynte å lagre kl. 12, én gang per abonnement
+/// per enhet. Ryddingen kjørte tidligere ved hver oppdatering, men en dato flyttet til kl. 12
+/// i én tidssone kan ligge utenfor 06–18 i en tidssone 7 timer eller mer unna. Enhetene skrev
+/// da hverandres datoer frem og tilbake via iCloud i det uendelige. Nye datoer lagres
+/// allerede kl. 12 av skjemaet, så det er bare eldre data som trenger ryddingen.
+///
+/// Hvert abonnement huskes for seg, ikke enheten som helhet: på en ny enhet kan CloudKit
+/// importere dataene litt etter litt, og en enhet med en eldre versjon av appen kan legge til
+/// abonnement med datoer nær midnatt. Begge deler kommer etter første rydding og skal også
+/// ryddes.
+///
+/// Kjente begrensninger:
+/// - Enheten som rydder et abonnement først, bestemmer dagen. En enhet i en fjern tidssone
+///   som importerer allerede ryddede data før den rydder selv, kan skrive hver dato én gang
+///   til. Det skjer høyst én gang per abonnement per enhet og blir aldri en løkke.
+/// - Endrer en eldre versjon et abonnement som allerede er ryddet her, ryddes det ikke igjen
+///   her. Den enheten rydder det selv når den oppdateres, siden den ikke har ryddet det før.
+enum StoredDateCleanup {
+    /// UserDefaults-nøkkel for ID-ene (`uuidString`) til abonnement som er ryddet på denne
+    /// enheten. ID-er til slettede abonnement blir liggende, men det er ufarlig: de tar lite
+    /// plass, og å fjerne ID-er som mangler i listen ville ryddet abonnement på nytt når
+    /// CloudKit bare har importert en del av dataene.
+    static let cleanedIDsKey = "StoredDateCleanup.v1CleanedIDs"
+
+    /// Kjører `normalizeStoredDates(calendar:)` på hvert abonnement som ikke er ryddet på
+    /// denne enheten før. Returnerer `true` hvis minst ett abonnement ble ryddet nå.
+    @discardableResult
+    static func runIfNeeded(
+        for subscriptions: [Subscription],
+        defaults: UserDefaults = .standard,
+        calendar: Calendar = .current
+    ) -> Bool {
+        let done = Set(defaults.stringArray(forKey: cleanedIDsKey) ?? [])
+        // Gjelder også arkiverte abonnement: ankeret brukes igjen hvis de gjenopprettes.
+        let pending = subscriptions.filter { !done.contains($0.id.uuidString) }
+        // Uten nye abonnement lagres ingenting. En tom liste på en ny enhet betyr bare at
+        // CloudKit ennå ikke har importert dataene, og de ryddes når de kommer.
+        guard !pending.isEmpty else { return false }
+        for subscription in pending {
+            subscription.normalizeStoredDates(calendar: calendar)
+        }
+        let cleaned = done.union(pending.map(\.id.uuidString))
+        defaults.set(Array(cleaned), forKey: cleanedIDsKey)
+        return true
+    }
+}

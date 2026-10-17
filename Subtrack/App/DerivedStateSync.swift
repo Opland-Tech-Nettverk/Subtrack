@@ -1,10 +1,14 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 /// Holder datoer, widget og varsler i takt med dataene, fra ett sted i hele appen.
 /// Visningene endrer bare modellene; denne fanger opp endringene og oppdaterer resten.
 private struct DerivedStateSync: ViewModifier {
+    private static let logger = Logger(subsystem: "com.opland.subtrack", category: "Sync")
+
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
     // @Query oppdateres også når CloudKit importerer endringer fra andre enheter, så
     // endringer gjort der mens appen er åpen her når også widgeten og varslene.
     @Query private var subscriptions: [Subscription]
@@ -24,12 +28,18 @@ private struct DerivedStateSync: ViewModifier {
     }
 
     private func refresh() {
-        // Eldre datoer kan ha et klokkeslett nær midnatt og vise en annen dag i en annen
-        // tidssone. De flyttes til kl. 12 før datoene flyttes frem, så fremflyttingen arver
-        // det nye klokkeslettet. Gjelder også arkiverte abonnement: ankeret brukes igjen hvis
-        // de gjenopprettes. Endringen utløser én runde til via onChange, som ikke endrer noe.
-        for subscription in subscriptions {
-            subscription.normalizeStoredDates()
+        // Eldre datoer nær midnatt flyttes til kl. 12 før datoene flyttes frem, så
+        // fremflyttingen arver det nye klokkeslettet. Bare én gang per abonnement per enhet,
+        // se `StoredDateCleanup` for hvorfor.
+        if StoredDateCleanup.runIfNeeded(for: subscriptions) {
+            // Ryddingen er allerede merket som gjort i UserDefaults, som lagres uavhengig av
+            // SwiftData. Lagre endringene nå, så de ikke går tapt hvis appen avsluttes før
+            // SwiftData lagrer av seg selv.
+            do {
+                try modelContext.save()
+            } catch {
+                Self.logger.error("Kunne ikke lagre ryddede datoer: \(error.localizedDescription, privacy: .public)")
+            }
         }
         for subscription in subscriptions where !subscription.isCancelled {
             subscription.advanceRenewalDateIfPast()
