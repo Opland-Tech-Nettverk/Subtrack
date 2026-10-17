@@ -1,0 +1,124 @@
+Subtrack – Lisens for innsyn i kildekode / Source-Available License (View Only)
+
+Copyright © 2026 Opland Tech Nettverk. Alle rettigheter forbeholdt.
+Copyright © 2026 Opland Tech Nettverk. All rights reserved.
+
+Den norske teksten gjelder foran den engelske hvis de er uforenlige.
+The Norwegian text prevails in the event of any inconsistency.
+
+================================================================================
+NORSK
+================================================================================
+
+1. Hva lisensen gjelder
+   Denne lisensen gjelder kildekoden, ressursene, dokumentasjonen og alt annet
+   innhold i dette repoet («Programvaren»). Rettighetshaver er
+   Opland Tech Nettverk («Rettighetshaveren»).
+
+2. Hva du har lov til
+   Programvaren er gjort offentlig kun for innsyn. Du har lov til å:
+   a) se på og lese Programvaren på GitHub;
+   b) forke repoet på GitHub i den grad GitHubs bruksvilkår krever det
+      for offentlige repoer.
+
+3. Hva du ikke har lov til
+   Uten forhåndsgodkjenning fra Rettighetshaveren, gitt skriftlig, har du ikke
+   lov til å:
+   a) bruke, kjøre, kompilere eller bygge Programvaren eller deler av den;
+   b) kopiere eller gjengi Programvaren eller deler av den, utover det punkt 2
+      tillater;
+   c) endre Programvaren eller lage avledede verk av den;
+   d) distribuere, publisere, underlisensiere, selge, leie ut eller på annen
+      måte gjøre Programvaren eller avledede verk tilgjengelig, verken gratis
+      eller mot betaling, og heller ikke i App Store eller andre
+      distribusjonskanaler;
+   e) bruke Programvaren eller deler av den i et annet produkt eller en annen
+      tjeneste, kommersiell eller ikke;
+   f) bruke Programvaren til å trene, finjustere eller evaluere
+      maskinlæringsmodeller eller KI-systemer;
+   g) fjerne eller endre merknader om opphavsrett eller lisens.
+
+4. Navn og varemerker
+   Lisensen gir ingen rett til å bruke navnet «Subtrack», appikonet, logoer
+   eller andre kjennetegn som tilhører Rettighetshaveren.
+
+5. Innsendt materiale
+   Rettighetshaveren er ikke forpliktet til å ta imot bidrag. Det oppstår ingen
+   lisens eller rettighet til Programvaren ved å sende inn issues, forslag
+   eller kode.
+
+6. Ingen garanti
+   Programvaren leveres «som den er», uten garantier av noe slag, verken
+   uttrykte eller underforståtte. Rettighetshaveren er ikke ansvarlig for tap
+   eller skade som følger av at Programvaren er sett på eller brukt, i den
+   grad gjeldende rett tillater det.
+
+7. Opphør
+   Bryter du vilkårene, faller enhver rett etter denne lisensen bort med
+   umiddelbar virkning. Rettighetshaveren forbeholder seg alle rettigheter og
+   rettsmidler etter gjeldende lov, blant annet åndsverkloven.
+
+8. Tillatelse
+   Ønsker du å bruke Programvaren på en måte denne lisensen ikke tillater, må
+   du ha skriftlig tillatelse fra Rettighetshaveren på forhånd.
+
+9. Lovvalg og verneting
+   Lisensen reguleres av norsk rett. Tvister avgjøres av de alminnelige
+   domstolene, med Rettighetshaverens hjemting som verneting.
+
+================================================================================
+ENGLISH
+================================================================================
+
+1. Scope
+   This license applies to the source code, assets, documentation and all
+   other content in this repository (the "Software"). The rights holder is
+   Opland Tech Nettverk (the "Licensor").
+
+2. What you may do
+   The Software is made public for viewing only. You may:
+   a) view and read the Software on GitHub;
+   b) fork the repository on GitHub to the extent required by GitHub's
+      Terms of Service for public repositories.
+
+3. What you may not do
+   Without the Licensor's prior written permission, you may not:
+   a) use, run, compile or build the Software or any part of it;
+   b) copy or reproduce the Software or any part of it, except as permitted
+      by section 2;
+   c) modify the Software or create derivative works of it;
+   d) distribute, publish, sublicense, sell, rent or otherwise make the
+      Software or any derivative work available, whether free of charge or
+      for a fee, including through the App Store or any other distribution
+      channel;
+   e) use the Software or any part of it in another product or service,
+      commercial or not;
+   f) use the Software to train, fine-tune or evaluate machine learning
+      models or AI systems;
+   g) remove or alter any copyright or license notices.
+
+4. Names and trademarks
+   This license grants no right to use the name "Subtrack", the app icon,
+   logos or any other marks belonging to the Licensor.
+
+5. Submissions
+   The Licensor is not obliged to accept contributions. Submitting issues,
+   suggestions or code does not create any license or right to the Software.
+
+6. No warranty
+   The Software is provided "as is", without warranty of any kind, express or
+   implied. To the extent permitted by applicable law, the Licensor is not
+   liable for any loss or damage arising from viewing or using the Software.
+
+7. Termination
+   Any breach of these terms terminates all rights under this license with
+   immediate effect. The Licensor reserves all rights and remedies under
+   applicable law, including the Norwegian Copyright Act (åndsverkloven).
+
+8. Permission
+   Any use of the Software not permitted by this license requires the
+   Licensor's prior written permission.
+
+9. Governing law and venue
+   This license is governed by Norwegian law. Disputes shall be settled by the
+   ordinary courts, with the Licensor's home venue as the agreed venue.
