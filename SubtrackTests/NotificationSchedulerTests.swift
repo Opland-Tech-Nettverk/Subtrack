@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UserNotifications
 @testable import Subtrack
 
 @MainActor
@@ -267,6 +268,187 @@ struct NotificationSchedulerTests {
         )
         #expect(firstReminder(in: reminders) == nil)
         #expect(reminders.count == NotificationScheduler.occurrencesPerSubscription - 1)
+    }
+
+    /// Prøveperiode som slutter 20. oktober med varsel 3 dager før: det foretrukne
+    /// tidspunktet (17. oktober kl. 09:00) er passert ved `fixedNow`.
+    private func shortTrial() -> (subscription: Subscription, key: String) {
+        let trialEnd = osloDate(2026, 10, 20, 12)
+        let trial = fixedSubscription(renewal: trialEnd, trialEnd: trialEnd)
+        return (trial, NotificationScheduler.renewalKey(for: trial, renewalDate: trialEnd, calendar: oslo))
+    }
+
+    @Test func aPendingTrialFallbackFromAnOlderVersionIsNotSeeded() {
+        let (trial, key) = shortTrial()
+        // Build 6 planla et reservevarsel dagen før, som ikke har gått ennå.
+        let pending = [trial.id.uuidString: [osloDate(2026, 10, 19, 9)]]
+
+        let seeded = NotificationScheduler.renewalsNotifiedBeforeTracking(
+            for: [trial],
+            now: fixedNow,
+            pendingTriggers: pending,
+            calendar: oslo
+        )
+        #expect(seeded[key] == nil)
+
+        // Varselet erstattes av vårt eget, på samme tidspunkt, i stedet for å forsvinne.
+        let reminders = NotificationScheduler.plannedReminders(
+            for: [trial],
+            now: fixedNow,
+            alreadyNotified: Set(seeded.keys),
+            calendar: oslo
+        )
+        let first = firstReminder(in: reminders)
+        #expect(first?.triggerDate == osloDate(2026, 10, 19, 9))
+        #expect(first?.renewalKey == key)
+        #expect(first?.title == "Prøveperioden for Fast slutter snart")
+    }
+
+    @Test func aTrialWithoutPendingRemindersIsSeeded() {
+        // Uten ventende varsler har build 6 allerede varslet, og vi antar som før at det gjelder.
+        let (trial, key) = shortTrial()
+
+        let seeded = NotificationScheduler.renewalsNotifiedBeforeTracking(
+            for: [trial],
+            now: fixedNow,
+            pendingTriggers: [:],
+            calendar: oslo
+        )
+
+        #expect(seeded == [key: osloDate(2026, 10, 20, 12)])
+        let reminders = NotificationScheduler.plannedReminders(
+            for: [trial],
+            now: fixedNow,
+            alreadyNotified: Set(seeded.keys),
+            calendar: oslo
+        )
+        #expect(firstReminder(in: reminders) == nil)
+    }
+
+    @Test func unrelatedPendingTriggersDoNotPreventSeeding() {
+        let (trial, key) = shortTrial()
+        let other = fixedSubscription(renewal: osloDate(2026, 10, 28, 12))
+
+        let unrelated: [[String: [Date]]] = [
+            // Riktig tidspunkt, men for et annet abonnement.
+            [other.id.uuidString: [osloDate(2026, 10, 19, 9)]],
+            // Riktig abonnement, men et tidspunkt som ikke hører til denne fornyelsen.
+            [trial.id.uuidString: [osloDate(2026, 10, 25, 9)]]
+        ]
+        for pending in unrelated {
+            let seeded = NotificationScheduler.renewalsNotifiedBeforeTracking(
+                for: [trial],
+                now: fixedNow,
+                pendingTriggers: pending,
+                calendar: oslo
+            )
+            #expect(seeded == [key: osloDate(2026, 10, 20, 12)])
+        }
+    }
+
+    @Test func aPendingTriggerWithinTheSameMinuteCountsAsPending() {
+        let (trial, key) = shortTrial()
+        // Sekundene skal ikke spille noen rolle: 09:00:30 er samme varsel som 09:00.
+        let halfAMinuteLate = oslo.date(from: DateComponents(year: 2026, month: 10, day: 19, hour: 9, minute: 0, second: 30))!
+
+        let seeded = NotificationScheduler.renewalsNotifiedBeforeTracking(
+            for: [trial],
+            now: fixedNow,
+            pendingTriggers: [trial.id.uuidString: [halfAMinuteLate]],
+            calendar: oslo
+        )
+
+        #expect(seeded[key] == nil)
+    }
+
+    // MARK: - Ventende varsler
+
+    /// Kalendervarsler er i lokal tid, så forventet tidspunkt bygges i enhetens tidssone.
+    private var localGregorian: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar
+    }
+
+    /// 15. juni kl. 12:00 om `yearsAhead` år, langt fra sommertidsskiftene.
+    private func localNoon(yearsAhead: Int, day: Int = 15) -> Date {
+        let year = localGregorian.component(.year, from: .now) + yearsAhead
+        return localGregorian.date(from: DateComponents(year: year, month: 6, day: day, hour: 12))!
+    }
+
+    private func pendingRequest(_ identifier: String, at date: Date) -> UNNotificationRequest {
+        let components = localGregorian.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        return UNNotificationRequest(
+            identifier: identifier,
+            content: UNMutableNotificationContent(),
+            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        )
+    }
+
+    @Test func pendingTriggerDatesReadTheUUIDAndTheNextTriggerDate() {
+        let uuid = UUID().uuidString
+        let upcoming = localNoon(yearsAhead: 1)
+
+        let result = NotificationScheduler.pendingTriggerDates(from: [pendingRequest("\(uuid)#0", at: upcoming)])
+
+        let dates = result[uuid] ?? []
+        #expect(dates.count == 1)
+        #expect(dates.first.map { localGregorian.isDate($0, equalTo: upcoming, toGranularity: .minute) } == true)
+    }
+
+    @Test func pendingTriggerDatesAreGroupedBySubscription() {
+        let uuid = UUID().uuidString
+        let first = localNoon(yearsAhead: 1)
+        let second = localNoon(yearsAhead: 1, day: 16)
+
+        let result = NotificationScheduler.pendingTriggerDates(from: [
+            pendingRequest("\(uuid)#0", at: first),
+            pendingRequest("\(uuid)#1", at: second)
+        ])
+
+        #expect(Array(result.keys) == [uuid])
+        let dates = result[uuid] ?? []
+        #expect(dates.count == 2)
+        // Rekkefølgen følger forespørslene.
+        for (date, expected) in zip(dates, [first, second]) {
+            #expect(localGregorian.isDate(date, equalTo: expected, toGranularity: .minute))
+        }
+    }
+
+    @Test func pendingTriggerDatesSkipRequestsWithoutANextDate() {
+        let uuid = UUID().uuidString
+        let pastComponents = DateComponents(year: 2000, month: 6, day: 15, hour: 12, minute: 0)
+        let past = UNNotificationRequest(
+            identifier: "\(uuid)#0",
+            content: UNMutableNotificationContent(),
+            trigger: UNCalendarNotificationTrigger(dateMatching: pastComponents, repeats: false)
+        )
+        // Bare kalendervarsler kommer fra appen, så andre utløsere telles ikke.
+        let timeInterval = UNNotificationRequest(
+            identifier: "\(uuid)#1",
+            content: UNMutableNotificationContent(),
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 60, repeats: false)
+        )
+
+        #expect(NotificationScheduler.pendingTriggerDates(from: [past]).isEmpty)
+        #expect(NotificationScheduler.pendingTriggerDates(from: [timeInterval]).isEmpty)
+        #expect(NotificationScheduler.pendingTriggerDates(from: [past, timeInterval])[uuid] == nil)
+    }
+
+    @Test func aSkippedRequestDoesNotHideTheOthers() {
+        let uuid = UUID().uuidString
+        let upcoming = localNoon(yearsAhead: 1)
+        let timeInterval = UNNotificationRequest(
+            identifier: "\(uuid)#0",
+            content: UNMutableNotificationContent(),
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 60, repeats: false)
+        )
+
+        let result = NotificationScheduler.pendingTriggerDates(from: [timeInterval, pendingRequest("\(uuid)#1", at: upcoming)])
+
+        let dates = result[uuid] ?? []
+        #expect(dates.count == 1)
+        #expect(dates.first.map { localGregorian.isDate($0, equalTo: upcoming, toGranularity: .minute) } == true)
     }
 
     @Test func renewalKeyUsesTheGregorianDayInTheCalendarsTimeZone() {

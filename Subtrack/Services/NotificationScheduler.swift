@@ -157,16 +157,33 @@ enum NotificationScheduler {
             // Første kjøring med denne bokføringen: eldre versjoner har kanskje allerede varslet
             // om fornyelser som nærmer seg, uten at vi vet det. Ved en ny installasjon kjører
             // første omplanlegging ved oppstart uten abonnement, så da merkes ingenting.
-            notified.merge(renewalsNotifiedBeforeTracking(for: subscriptions, now: now)) { current, _ in current }
+            // Varslene den eldre versjonen planla, må leses før de fjernes under: de som ikke
+            // har gått ennå, skal ikke regnes som sendt.
+            let pendingRequests = await center.pendingNotificationRequests()
+            // Flagget er ikke satt ennå, så den nyere kjøringen gjør alt dette på nytt.
+            guard !Task.isCancelled else { return }
+            let pending = pendingTriggerDates(from: pendingRequests)
+            notified.merge(
+                renewalsNotifiedBeforeTracking(for: subscriptions, now: now, pendingTriggers: pending)
+            ) { current, _ in current }
             save(notified, forKey: notifiedRenewalsKey)
             UserDefaults.standard.set(true, forKey: trackingStartedKey)
         }
 
+        guard canDeliverNotifications(authorizationStatus) else {
+            // Uten tillatelse vises ingen varsler. Lagres de likevel, ville de senere regnes som
+            // sendt og hindret reservevarsler etter at brukeren slår varsler på. Vi legger dem
+            // heller ikke til: slår brukeren på varsler i Innstillinger mens appen er i bakgrunnen,
+            // kunne et ubokført varsel gått og fått et reservevarsel for samme trekk. Når appen
+            // blir aktiv igjen, planlegger synkroniseringen alt på nytt (og skjemaet gjør det rett
+            // etter tillatelsesdialogen).
+            save([String: ScheduledTrigger](), forKey: scheduledTriggersKey)
+            center.removeAllPendingNotificationRequests()
+            return
+        }
+
         let reminders = plannedReminders(for: subscriptions, now: now, alreadyNotified: Set(notified.keys))
-        // Uten tillatelse vises ingen varsler. Lagres de likevel, ville de senere regnes som
-        // sendt og hindret reservevarsler etter at brukeren slår varsler på.
-        let scheduled = canDeliverNotifications(authorizationStatus) ? scheduledTriggers(for: reminders) : [:]
-        save(scheduled, forKey: scheduledTriggersKey)
+        save(scheduledTriggers(for: reminders), forKey: scheduledTriggersKey)
 
         // Appen planlegger ingen andre varsler enn disse, så det er trygt å fjerne alle.
         center.removeAllPendingNotificationRequests()
@@ -256,23 +273,57 @@ enum NotificationScheduler {
     /// bokføringen kjører, så brukere som oppdaterer ikke får et reservevarsel for samme trekk.
     /// Vi kan ikke vite det sikkert (f.eks. for et abonnement lagt inn etter at tidspunktet
     /// var passert), men går heller glipp av ett reservevarsel enn å varsle to ganger.
+    ///
+    /// Build 6 brukte reservetidspunkt (dagen før og samme morgen) for prøveperioder. Har en
+    /// fornyelse et ventende varsel på ett av disse tidspunktene i `pendingTriggers`
+    /// (`[uuid: utløsningstidspunkter]`, lest før varslene fjernes), merkes den ikke. Det betyr
+    /// bare at akkurat det varselet ikke har gått: build 6 kan ha sendt det foretrukne varselet
+    /// og planlagt reservevarselet ved en senere åpning. Her aksepterer vi et mulig dobbeltvarsel
+    /// fremfor intet varsel før prøveperioden belastes.
     static func renewalsNotifiedBeforeTracking(
         for subscriptions: [Subscription],
         now: Date,
+        pendingTriggers: [String: [Date]] = [:],
         calendar: Calendar = .current
     ) -> [String: Date] {
         let startOfToday = calendar.startOfDay(for: now)
         var result: [String: Date] = [:]
         for subscription in subscriptions where subscription.isBilling {
+            let daysBefore = subscription.reminderDaysBefore
+            let pending = pendingTriggers[subscription.id.uuidString] ?? []
+            // Samme alternativer som `RenewalCalculator.reminderDate(forRenewal:...)`.
+            let candidateDays = [daysBefore, 1, 0].filter { $0 <= daysBefore }
             let renewals = subscription.upcomingRenewalDates(count: occurrencesPerSubscription, calendar: calendar)
             for renewalDate in renewals where renewalDate >= startOfToday {
                 guard let preferred = RenewalCalculator.reminderDate(
                     nextRenewalDate: renewalDate,
-                    daysBefore: subscription.reminderDaysBefore,
+                    daysBefore: daysBefore,
                     calendar: calendar
                 ), preferred <= now else { continue }
+                let hasPendingReminder = candidateDays.contains { days in
+                    guard let candidate = RenewalCalculator.reminderDate(
+                        nextRenewalDate: renewalDate,
+                        daysBefore: days,
+                        calendar: calendar
+                    ) else { return false }
+                    return pending.contains { calendar.isDate($0, equalTo: candidate, toGranularity: .minute) }
+                }
+                if hasPendingReminder { continue }
                 result[renewalKey(for: subscription, renewalDate: renewalDate, calendar: calendar)] = renewalDate
             }
+        }
+        return result
+    }
+
+    /// `[uuid: utløsningstidspunkter]` for ventende varsler. Identifikatorene er `uuid#nummer`,
+    /// se `plannedReminders`. Varsler uten neste utløsningstidspunkt hoppes over.
+    static func pendingTriggerDates(from requests: [UNNotificationRequest]) -> [String: [Date]] {
+        var result: [String: [Date]] = [:]
+        for request in requests {
+            guard let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                  let date = trigger.nextTriggerDate() else { continue }
+            let uuid = String(request.identifier.prefix(while: { $0 != "#" }))
+            result[uuid, default: []].append(date)
         }
         return result
     }
