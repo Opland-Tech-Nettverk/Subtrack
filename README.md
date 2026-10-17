@@ -300,8 +300,9 @@ Kildekoden er gjort offentlig **kun for innsyn**. Lisensen er ikke en åpen kild
 | | bruke koden i et annet produkt eller en annen tjeneste, kommersiell eller ikke |
 | | bruke koden til å trene, finjustere eller evaluere maskinlæringsmodeller eller KI-systemer |
 | | fjerne eller endre merknader om opphavsrett eller lisens |
+| | bruke navnet «Subtrack», appikonet eller logoene, eller noe som kan forveksles med dem, i egne apper, produkter, tjenester eller markedsføring |
 
-Navnet «Subtrack», appikonet, logoer og andre kjennetegn er heller ikke lisensiert. Se [LICENSE](LICENSE) for de fullstendige vilkårene, som gjelder foran denne oppsummeringen.
+Navnet «Subtrack», appikonet og logoene tilhører Opland Tech Nettverk. Du kan omtale appen ved navn, for eksempel i en anmeldelse. Se [LICENSE](LICENSE) for de fullstendige vilkårene, som gjelder foran denne oppsummeringen.
 
 Ønsker du å bruke koden til noe, ta kontakt med [Opland Tech Nettverk](https://github.com/Opland-Tech-Nettverk) for skriftlig tillatelse.
 
