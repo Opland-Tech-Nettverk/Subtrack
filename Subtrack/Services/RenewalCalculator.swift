@@ -47,6 +47,19 @@ enum RenewalCalculator {
         return calendar.date(from: components) ?? date
     }
 
+    /// Som `normalizedToNoon(_:calendar:)`, men bare når klokkeslettet ligger nær midnatt
+    /// (før 06:00 eller fra 18:00). Brukes til å rydde opp i datoer lagret før skjemaet
+    /// begynte å lagre kl. 12. Vinduet hindrer at enheter i ulike tidssoner flytter datoen
+    /// frem og tilbake: 12:00 i Oslo er 11:00 i London, altså innenfor vinduet, så London
+    /// lar den være. Det holder så lenge enhetene ligger inntil 6 timer fra hverandre.
+    /// Kjent begrensning: enheten som rydder først, bestemmer dagen. En dato registrert nær
+    /// midnatt mens brukeren var på reise kan derfor havne én dag feil.
+    static func normalizedToNoonIfNearMidnight(_ date: Date, calendar: Calendar = .current) -> Date {
+        let hour = calendar.component(.hour, from: date)
+        guard hour < 6 || hour >= 18 else { return date }
+        return normalizedToNoon(date, calendar: calendar)
+    }
+
     /// Sikkerhetstak så en ugyldig kalenderberegning aldri kan gi en evig løkke.
     private static let maxOccurrenceIndex = 10_000
 

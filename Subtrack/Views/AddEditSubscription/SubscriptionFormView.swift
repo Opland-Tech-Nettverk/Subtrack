@@ -290,12 +290,18 @@ struct SubscriptionFormView: View {
             // Sammenlign på dag, siden det er alt skjemaet viser. Er dagen uendret, beholdes
             // lagret dato og anker nøyaktig som de er - ellers ville eldre datoer med et annet
             // klokkeslett telt som endret, og en "klemt" dato (f.eks. 28. feb for en
-            // 31.-fornyelse) blitt det nye ankeret.
-            let dateChanged = !Calendar.current.isDate(nextRenewalDate, inSameDayAs: existing.nextRenewalDate)
+            // 31.-fornyelse) blitt det nye ankeret. Sammenlign med verdiene skjemaet ble åpnet
+            // med, ikke de lagrede: synk eller iCloud kan ha flyttet datoen mens skjemaet var
+            // åpent (f.eks. over midnatt), og da ville en uendret dato i utkastet overskrevet
+            // den nyere og blitt nytt anker.
+            let loadedDate = initialSnapshot?.nextRenewalDate ?? existing.nextRenewalDate
+            let dateChanged = !Calendar.current.isDate(nextRenewalDate, inSameDayAs: loadedDate)
+            let intervalChanged = billingInterval != (initialSnapshot?.billingInterval ?? existing.interval)
+            let trialToggled = hasTrial != (initialSnapshot?.hasTrial ?? existing.isInTrial())
             if dateChanged {
                 subscription.nextRenewalDate = renewalDate
                 subscription.billingAnchorDate = renewalDate
-            } else if billingInterval != existing.interval {
+            } else if intervalChanged {
                 // Nytt intervall gir ny rytme, regnet fra den lagrede fornyelsesdatoen.
                 subscription.billingAnchorDate = subscription.nextRenewalDate
             }
@@ -303,7 +309,11 @@ struct SubscriptionFormView: View {
             subscription.price = price
             subscription.currencyCode = currencyCode
             subscription.interval = billingInterval
-            subscription.trialEndDate = hasTrial ? subscription.nextRenewalDate : nil
+            // Samme regel for prøveperioden: uendret dato og bryter beholder den lagrede
+            // sluttdatoen, også en som allerede er passert.
+            if dateChanged || trialToggled {
+                subscription.trialEndDate = hasTrial ? subscription.nextRenewalDate : nil
+            }
             subscription.kind = category
             subscription.note = noteToSave
             subscription.isActive = isActive

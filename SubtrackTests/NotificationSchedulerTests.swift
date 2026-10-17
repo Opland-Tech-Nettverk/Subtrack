@@ -61,17 +61,17 @@ struct NotificationSchedulerTests {
     }
 
     @Test func fallsBackWhenTheLeadTimeHasPassed() {
-        // Fornyes om 1 dag, varsel 3 dager før -> det foretrukne varselet er allerede passert,
+        // Fornyes i morgen, varsel 3 dager før -> det foretrukne varselet er allerede passert,
         // så det kommer dagen før eller samme morgen i stedet.
-        let renewing = subscription(daysUntilRenewal: 1, reminderDaysBefore: 3)
-        let reminders = NotificationScheduler.plannedReminders(for: [renewing], now: now)
+        let renewing = fixedSubscription(renewal: osloDate(2026, 10, 19, 12))
+        let reminders = NotificationScheduler.plannedReminders(for: [renewing], now: fixedNow, calendar: oslo)
 
-        let first = reminders.first { $0.identifier.hasSuffix("#0") }
+        let first = firstReminder(in: reminders)
         let fallbacks = [1, 0].compactMap {
-            RenewalCalculator.reminderDate(nextRenewalDate: renewing.nextRenewalDate, daysBefore: $0)
+            RenewalCalculator.reminderDate(nextRenewalDate: renewing.nextRenewalDate, daysBefore: $0, calendar: oslo)
         }
         #expect(first.map { fallbacks.contains($0.triggerDate) } == true)
-        #expect(reminders.allSatisfy { $0.triggerDate > now })
+        #expect(reminders.allSatisfy { $0.triggerDate > fixedNow })
         #expect(reminders.count == NotificationScheduler.occurrencesPerSubscription)
     }
 
@@ -207,5 +207,89 @@ struct NotificationSchedulerTests {
         let result = NotificationScheduler.updatedNotifiedRenewals(scheduled: scheduled, notified: notified, now: fixedNow)
 
         #expect(result == ["fired": osloDate(2026, 10, 21, 12), "recent": osloDate(2026, 10, 14, 12)])
+    }
+
+    @Test func aFiredReminderIsNotFollowedByAFallbackOnTheNextRun() {
+        // Fornyes 22. oktober: varselet 3 dager før (19. oktober kl. 09:00) ligger fortsatt foran.
+        let renewing = fixedSubscription(renewal: osloDate(2026, 10, 22, 12))
+        let key = NotificationScheduler.renewalKey(for: renewing, renewalDate: renewing.nextRenewalDate, calendar: oslo)
+
+        // Første kjøring: planlegg og lagre planen slik `reschedule` gjør.
+        let firstPlan = NotificationScheduler.plannedReminders(for: [renewing], now: fixedNow, calendar: oslo)
+        #expect(firstReminder(in: firstPlan)?.triggerDate == osloDate(2026, 10, 19, 9))
+        let scheduled = NotificationScheduler.scheduledTriggers(for: firstPlan)
+
+        // Neste kjøring, etter at varselet har gått.
+        let later = osloDate(2026, 10, 19, 10)
+        let notified = NotificationScheduler.updatedNotifiedRenewals(scheduled: scheduled, notified: [:], now: later)
+        #expect(notified[key] == renewing.nextRenewalDate)
+
+        // Uten bokføringen ville det kommet et reservevarsel dagen før.
+        let untracked = NotificationScheduler.plannedReminders(for: [renewing], now: later, calendar: oslo)
+        #expect(firstReminder(in: untracked)?.triggerDate == osloDate(2026, 10, 21, 9))
+
+        let secondPlan = NotificationScheduler.plannedReminders(
+            for: [renewing],
+            now: later,
+            alreadyNotified: Set(notified.keys),
+            calendar: oslo
+        )
+        #expect(firstReminder(in: secondPlan) == nil)
+        #expect(secondPlan.count == NotificationScheduler.occurrencesPerSubscription - 1)
+    }
+
+    @Test func seedsRenewalsAnOlderVersionHasAlreadyNotifiedAbout() {
+        // Fornyes i morgen med varsel 3 dager før: en eldre versjon varslet 16. oktober.
+        let notifiedBefore = fixedSubscription(renewal: osloDate(2026, 10, 19, 12))
+        // Fornyes om 10 dager: varselet har ikke gått ennå.
+        let upcoming = fixedSubscription(renewal: osloDate(2026, 10, 28, 12))
+        // Pausede abonnement varsles ikke.
+        let paused = fixedSubscription(renewal: osloDate(2026, 10, 19, 12))
+        paused.isActive = false
+        // Fornyelsen i går er over og trenger ikke huskes.
+        let passed = fixedSubscription(renewal: osloDate(2026, 10, 17, 12))
+
+        let seeded = NotificationScheduler.renewalsNotifiedBeforeTracking(
+            for: [notifiedBefore, upcoming, paused, passed],
+            now: fixedNow,
+            calendar: oslo
+        )
+
+        let key = NotificationScheduler.renewalKey(for: notifiedBefore, renewalDate: notifiedBefore.nextRenewalDate, calendar: oslo)
+        #expect(seeded == [key: osloDate(2026, 10, 19, 12)])
+
+        // Ikke et reservevarsel samme morgen for et trekk det allerede er varslet om.
+        let reminders = NotificationScheduler.plannedReminders(
+            for: [notifiedBefore],
+            now: fixedNow,
+            alreadyNotified: Set(seeded.keys),
+            calendar: oslo
+        )
+        #expect(firstReminder(in: reminders) == nil)
+        #expect(reminders.count == NotificationScheduler.occurrencesPerSubscription - 1)
+    }
+
+    @Test func renewalKeyUsesTheGregorianDayInTheCalendarsTimeZone() {
+        let renewing = fixedSubscription(renewal: osloDate(2026, 10, 19, 12))
+        func key(_ date: Date, _ calendar: Calendar) -> String {
+            NotificationScheduler.renewalKey(for: renewing, renewalDate: date, calendar: calendar)
+        }
+        var london = Calendar(identifier: .gregorian)
+        london.timeZone = TimeZone(identifier: "Europe/London")!
+
+        // 00:30 i Oslo er 23:30 dagen før i London: nøkkelen følger kalenderens tidssone,
+        // så samme tidspunkt kan gi ulik dag.
+        let justAfterMidnight = oslo.date(from: DateComponents(year: 2026, month: 10, day: 19, hour: 0, minute: 30))!
+        #expect(key(justAfterMidnight, oslo) == "\(renewing.id.uuidString)|2026-10-19")
+        #expect(key(justAfterMidnight, london) == "\(renewing.id.uuidString)|2026-10-18")
+
+        // Kl. 12 er det samme dag i begge.
+        let noon = osloDate(2026, 10, 19, 12)
+        #expect(key(noon, oslo) == key(noon, london))
+
+        // Japansk kalender ville gitt år 8 (Reiwa), men nøkkelen er alltid gregoriansk.
+        var japanese = Calendar(identifier: .japanese)
+        japanese.timeZone = oslo.timeZone
+        #expect(key(noon, japanese) == key(noon, oslo))
     }
 }

@@ -233,6 +233,53 @@ struct RenewalCalculatorTests {
         }
     }
 
+    // MARK: - Klokkeslett nær midnatt
+
+    private var london: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/London")!
+        return calendar
+    }
+
+    @Test(arguments: [(0, 41), (5, 59), (18, 0), (23, 1)] as [(Int, Int)])
+    func normalizedToNoonIfNearMidnightMovesNightTimesToNoonTheSameDay(hour: Int, minute: Int) {
+        let original = osloDate(2026, 1, 15, hour, minute)
+        let normalized = RenewalCalculator.normalizedToNoonIfNearMidnight(original, calendar: oslo)
+        #expect(normalized == osloDate(2026, 1, 15, 12, 0))
+    }
+
+    @Test(arguments: [(6, 0), (12, 0), (14, 0), (17, 59)] as [(Int, Int)])
+    func normalizedToNoonIfNearMidnightLeavesDaytimeUnchanged(hour: Int, minute: Int) {
+        let original = osloDate(2026, 1, 15, hour, minute)
+        #expect(RenewalCalculator.normalizedToNoonIfNearMidnight(original, calendar: oslo) == original)
+    }
+
+    @Test func normalizedToNoonIfNearMidnightIsIdempotent() {
+        for (hour, minute) in [(0, 41), (5, 59), (6, 0), (17, 59), (18, 0), (22, 8), (23, 1)] {
+            let once = RenewalCalculator.normalizedToNoonIfNearMidnight(osloDate(2026, 1, 15, hour, minute), calendar: oslo)
+            let twice = RenewalCalculator.normalizedToNoonIfNearMidnight(once, calendar: oslo)
+            #expect(twice == once)
+        }
+    }
+
+    @Test func normalizedToNoonIfNearMidnightDoesNotPingPongBetweenTimeZones() {
+        // Vintertid (Oslo UTC+1, London UTC+0) og sommertid (Oslo UTC+2, London UTC+1).
+        for (month, hour, minute) in [(1, 23, 1), (1, 0, 41), (7, 23, 1), (7, 0, 41)] {
+            let normalizedInOslo = RenewalCalculator.normalizedToNoonIfNearMidnight(
+                osloDate(2026, month, 15, hour, minute),
+                calendar: oslo
+            )
+            #expect(normalizedInOslo == osloDate(2026, month, 15, 12, 0))
+            // 12:00 i Oslo er 11:00 i London - innenfor vinduet, så London lar datoen være.
+            #expect(RenewalCalculator.normalizedToNoonIfNearMidnight(normalizedInOslo, calendar: london) == normalizedInOslo)
+            #expect(london.component(.hour, from: normalizedInOslo) == 11)
+
+            // Og motsatt vei: 12:00 i London er 13:00 i Oslo.
+            let normalizedInLondon = RenewalCalculator.normalizedToNoon(normalizedInOslo, calendar: london)
+            #expect(RenewalCalculator.normalizedToNoonIfNearMidnight(normalizedInLondon, calendar: oslo) == normalizedInLondon)
+        }
+    }
+
     @Test func reminderDateSubtractsDaysAndSetsHour() {
         let renewal = date(2026, 5, 15)
         let reminder = RenewalCalculator.reminderDate(

@@ -30,9 +30,10 @@ enum NotificationScheduler {
     /// Hvor mange fremtidige fornyelser vi vurderer per abonnement.
     static let occurrencesPerSubscription = 6
 
-    /// Øker for hver omplanlegging, slik at en eldre kjøring som fortsatt legger til
-    /// varsler kan avbryte seg selv i stedet for å overskrive en nyere.
-    private static var generation = 0
+    /// Omplanleggingen som kjører nå, eller sist kjørte. En ny omplanlegging avbryter den og
+    /// venter til den er helt ferdig før den selv starter, så et `add` fra en eldre kjøring
+    /// aldri kan lande etter at en nyere har fjernet alle varslene.
+    private static var currentReschedule: Task<Void, Never>?
 
     private static let logger = Logger(subsystem: "com.opland.subtrack", category: "Notifications")
 
@@ -68,8 +69,12 @@ enum NotificationScheduler {
 
     /// Stabil nøkkel for én fornyelse av et abonnement: `uuid|åååå-mm-dd`. Bygges fra
     /// kalenderkomponenter, ikke en formatter, så den ikke avhenger av språkinnstillinger.
+    /// Nøkkelen bruker alltid gregoriansk år, måned og dag i tidssonen til `calendar`, så
+    /// den ikke endres om brukeren bytter til f.eks. japansk eller buddhistisk kalender.
     static func renewalKey(for subscription: Subscription, renewalDate: Date, calendar: Calendar = .current) -> String {
-        let components = calendar.dateComponents([.year, .month, .day], from: renewalDate)
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = calendar.timeZone
+        let components = gregorian.dateComponents([.year, .month, .day], from: renewalDate)
         let day = String(format: "%04ld-%02ld-%02ld", components.year ?? 0, components.month ?? 0, components.day ?? 0)
         return "\(subscription.id.uuidString)|\(day)"
     }
@@ -122,20 +127,53 @@ enum NotificationScheduler {
     }
 
     /// Erstatter alle planlagte varsler med de nærmeste for de gitte abonnementene.
+    ///
+    /// Trygt å kalle mange ganger raskt etter hverandre: kjøringene går etter tur, og en ny
+    /// avbryter den forrige, så bare den siste planleggingen blir stående.
     static func reschedule(for subscriptions: [Subscription]) async {
-        generation += 1
-        let currentGeneration = generation
-        let now = Date.now
-        let notified = loadNotifiedRenewals(now: now)
-        let reminders = plannedReminders(for: subscriptions, now: now, alreadyNotified: Set(notified.keys))
-        saveScheduledTriggers(for: reminders)
+        let previous = currentReschedule
+        previous?.cancel()
+        // Arver MainActor herfra, som resten av appen.
+        let task = Task {
+            if let previous {
+                await previous.value
+            }
+            guard !Task.isCancelled else { return }
+            await performReschedule(for: subscriptions)
+        }
+        currentReschedule = task
+        await task.value
+    }
 
+    /// Selve omplanleggingen. Kjøres bare fra `reschedule(for:)`, aldri to samtidig.
+    private static func performReschedule(for subscriptions: [Subscription]) async {
         let center = UNUserNotificationCenter.current()
+        let authorizationStatus = await center.notificationSettings().authorizationStatus
+        guard !Task.isCancelled else { return }
+
+        let now = Date.now
+        var notified = loadNotifiedRenewals(now: now)
+        if !UserDefaults.standard.bool(forKey: trackingStartedKey) {
+            // Første kjøring med denne bokføringen: eldre versjoner har kanskje allerede varslet
+            // om fornyelser som nærmer seg, uten at vi vet det. Ved en ny installasjon kjører
+            // første omplanlegging ved oppstart uten abonnement, så da merkes ingenting.
+            notified.merge(renewalsNotifiedBeforeTracking(for: subscriptions, now: now)) { current, _ in current }
+            save(notified, forKey: notifiedRenewalsKey)
+            UserDefaults.standard.set(true, forKey: trackingStartedKey)
+        }
+
+        let reminders = plannedReminders(for: subscriptions, now: now, alreadyNotified: Set(notified.keys))
+        // Uten tillatelse vises ingen varsler. Lagres de likevel, ville de senere regnes som
+        // sendt og hindret reservevarsler etter at brukeren slår varsler på.
+        let scheduled = canDeliverNotifications(authorizationStatus) ? scheduledTriggers(for: reminders) : [:]
+        save(scheduled, forKey: scheduledTriggersKey)
+
         // Appen planlegger ingen andre varsler enn disse, så det er trygt å fjerne alle.
         center.removeAllPendingNotificationRequests()
 
         for reminder in reminders {
-            guard currentGeneration == generation else { return }
+            // En nyere omplanlegging venter på denne, så stopp i stedet for å legge til flere.
+            guard !Task.isCancelled else { return }
 
             let content = UNMutableNotificationContent()
             content.title = reminder.title
@@ -189,6 +227,11 @@ enum NotificationScheduler {
     private static let scheduledTriggersKey = "NotificationScheduler.scheduledTriggers"
     /// `[renewalKey: fornyelsesdato]` for fornyelser det allerede er varslet om.
     private static let notifiedRenewalsKey = "NotificationScheduler.notifiedRenewals"
+    /// Settes første gang denne bokføringen kjører. Mangler den, kommer brukeren fra en
+    /// eldre versjon (eller er ny), se `renewalsNotifiedBeforeTracking`. Et manglende
+    /// `scheduledTriggersKey` kan ikke brukes til dette: det forblir tomt så lenge brukeren
+    /// ikke har gitt tillatelse til varsler.
+    private static let trackingStartedKey = "NotificationScheduler.trackingStarted"
     /// Hvor lenge en passert fornyelse huskes. Den trengs bare til fornyelsen er over,
     /// men litt slingringsmonn tåler en klokke eller tidssone som endres.
     private static let notifiedRetention: TimeInterval = 7 * 86_400
@@ -208,6 +251,44 @@ enum NotificationScheduler {
         return result.filter { $0.value >= cutoff }
     }
 
+    /// Fornyelser en eldre versjon av appen trolig allerede har varslet om: de som ikke er
+    /// passert, men der det foretrukne varseltidspunktet er det. Brukes bare første gang
+    /// bokføringen kjører, så brukere som oppdaterer ikke får et reservevarsel for samme trekk.
+    /// Vi kan ikke vite det sikkert (f.eks. for et abonnement lagt inn etter at tidspunktet
+    /// var passert), men går heller glipp av ett reservevarsel enn å varsle to ganger.
+    static func renewalsNotifiedBeforeTracking(
+        for subscriptions: [Subscription],
+        now: Date,
+        calendar: Calendar = .current
+    ) -> [String: Date] {
+        let startOfToday = calendar.startOfDay(for: now)
+        var result: [String: Date] = [:]
+        for subscription in subscriptions where subscription.isBilling {
+            let renewals = subscription.upcomingRenewalDates(count: occurrencesPerSubscription, calendar: calendar)
+            for renewalDate in renewals where renewalDate >= startOfToday {
+                guard let preferred = RenewalCalculator.reminderDate(
+                    nextRenewalDate: renewalDate,
+                    daysBefore: subscription.reminderDaysBefore,
+                    calendar: calendar
+                ), preferred <= now else { continue }
+                result[renewalKey(for: subscription, renewalDate: renewalDate, calendar: calendar)] = renewalDate
+            }
+        }
+        return result
+    }
+
+    /// Om varsler faktisk vises med denne tillatelsen.
+    private static func canDeliverNotifications(_ status: UNAuthorizationStatus) -> Bool {
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .denied, .notDetermined:
+            return false
+        @unknown default:
+            return false
+        }
+    }
+
     /// Fornyelser det allerede er varslet om, oppdatert med det som har gått siden sist.
     private static func loadNotifiedRenewals(now: Date) -> [String: Date] {
         let notified = updatedNotifiedRenewals(
@@ -219,12 +300,12 @@ enum NotificationScheduler {
         return notified
     }
 
-    private static func saveScheduledTriggers(for reminders: [PlannedReminder]) {
-        let scheduled = Dictionary(
+    /// Det som lagres om en plan, så neste omplanlegging vet hvilke varsler som har gått.
+    static func scheduledTriggers(for reminders: [PlannedReminder]) -> [String: ScheduledTrigger] {
+        Dictionary(
             reminders.map { ($0.renewalKey, ScheduledTrigger(triggerDate: $0.triggerDate, renewalDate: $0.renewalDate)) },
             uniquingKeysWith: { first, _ in first }
         )
-        save(scheduled, forKey: scheduledTriggersKey)
     }
 
     /// Leser JSON fra UserDefaults. Mangler eller ugyldige data gir `nil`, så vi starter på nytt.
