@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 
+/// Oversikten over abonnementene. Endrer bare modellene: datoer, widget og varsler
+/// holdes i takt av `keepsDerivedStateInSync()` på roten av appen.
 struct SubscriptionListView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(ExchangeRateStore.self) private var exchangeRates
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @AppStorage(AppSettingsKeys.sortOrder) private var sortOrder: SubscriptionSortOrder = .renewal
@@ -112,16 +112,6 @@ struct SubscriptionListView: View {
             }
             .sensoryFeedback(.impact(weight: .light), trigger: pauseFeedbackTrigger)
             .sensoryFeedback(.impact(weight: .medium), trigger: archiveFeedbackTrigger)
-            // Kjør hver gang appen blir aktiv, ikke bare første gang: med iCloud-synk kan
-            // abonnement ha endret seg på en annen enhet mens appen lå i bakgrunnen.
-            .onChange(of: scenePhase, initial: true) { _, phase in
-                guard phase == .active else { return }
-                refreshDerivedState()
-            }
-            // Abonnement lagt til eller slettet via synk mens appen er åpen.
-            .onChange(of: subscriptions.map(\.id)) {
-                refreshDerivedState()
-            }
         }
     }
 
@@ -194,8 +184,6 @@ struct SubscriptionListView: View {
                         subscription.isActive.toggle()
                     }
                     pauseFeedbackTrigger += 1
-                    WidgetSnapshotStore.update(with: subscriptions)
-                    Task { await NotificationScheduler.reschedule(for: subscriptions) }
                 }
                 .tint(subscription.isActive ? .orange : .green)
             }
@@ -206,17 +194,6 @@ struct SubscriptionListView: View {
             subscription.cancelledDate = .now
         }
         archiveFeedbackTrigger += 1
-        WidgetSnapshotStore.update(with: subscriptions)
-        Task { await NotificationScheduler.reschedule(for: subscriptions) }
-    }
-
-    /// Holder datoer, widget og varsler i takt med dataene.
-    private func refreshDerivedState() {
-        for subscription in subscriptions where !subscription.isCancelled {
-            subscription.advanceRenewalDateIfPast()
-        }
-        WidgetSnapshotStore.update(with: subscriptions)
-        Task { await NotificationScheduler.reschedule(for: subscriptions) }
     }
 }
 

@@ -280,21 +280,30 @@ struct SubscriptionFormView: View {
         let noteToSave = trimmedNote.isEmpty ? nil : trimmedNote
         // Lagres i tolket form, f.eks. "https://netflix.com/cancel".
         let cancelURLToSave = cancelURL?.absoluteString
+        // DatePicker viser bare datoen, men beholder klokkeslettet skjemaet ble åpnet.
+        // Lagres kl. 12, så datoen er den samme uansett tidspunkt for lagringen.
+        let renewalDate = RenewalCalculator.normalizedToNoon(nextRenewalDate)
 
         let subscription: Subscription
         if let existing = subscriptionToEdit {
             subscription = existing
-            // Ny rytme kun når dato eller intervall faktisk er endret - ellers ville en
-            // "klemt" dato (f.eks. 28. feb for en 31.-fornyelse) blitt det nye ankeret.
-            if nextRenewalDate != existing.nextRenewalDate || billingInterval != existing.interval {
-                subscription.billingAnchorDate = nextRenewalDate
+            // Sammenlign på dag, siden det er alt skjemaet viser. Er dagen uendret, beholdes
+            // lagret dato og anker nøyaktig som de er - ellers ville eldre datoer med et annet
+            // klokkeslett telt som endret, og en "klemt" dato (f.eks. 28. feb for en
+            // 31.-fornyelse) blitt det nye ankeret.
+            let dateChanged = !Calendar.current.isDate(nextRenewalDate, inSameDayAs: existing.nextRenewalDate)
+            if dateChanged {
+                subscription.nextRenewalDate = renewalDate
+                subscription.billingAnchorDate = renewalDate
+            } else if billingInterval != existing.interval {
+                // Nytt intervall gir ny rytme, regnet fra den lagrede fornyelsesdatoen.
+                subscription.billingAnchorDate = subscription.nextRenewalDate
             }
             subscription.name = name
             subscription.price = price
             subscription.currencyCode = currencyCode
             subscription.interval = billingInterval
-            subscription.nextRenewalDate = nextRenewalDate
-            subscription.trialEndDate = hasTrial ? nextRenewalDate : nil
+            subscription.trialEndDate = hasTrial ? subscription.nextRenewalDate : nil
             subscription.kind = category
             subscription.note = noteToSave
             subscription.isActive = isActive
@@ -309,8 +318,8 @@ struct SubscriptionFormView: View {
                 price: price,
                 currencyCode: currencyCode,
                 billingInterval: billingInterval,
-                nextRenewalDate: nextRenewalDate,
-                trialEndDate: hasTrial ? nextRenewalDate : nil,
+                nextRenewalDate: renewalDate,
+                trialEndDate: hasTrial ? renewalDate : nil,
                 category: category,
                 note: noteToSave,
                 isActive: isActive,
@@ -322,12 +331,17 @@ struct SubscriptionFormView: View {
             )
             modelContext.insert(subscription)
         }
+        // En passert dato flyttes frem med en gang, så abonnementet ikke vises som
+        // "Forfalt" frem til neste gang appen blir aktiv.
+        subscription.advanceRenewalDateIfPast()
 
-        WidgetSnapshotStore.update(using: modelContext)
+        // Widgeten og varslene oppdateres av `keepsDerivedStateInSync()` når modellen endres.
         Task {
             // Spør om varseltillatelse her, i den konteksten der brukeren nettopp
             // har bedt om å bli varslet - ikke uoppfordret ved appens aller første oppstart.
             await NotificationScheduler.requestAuthorizationIfNeeded()
+            // Bevisst ny planlegging etter spørsmålet: synk-modifikatoren kan allerede ha
+            // planlagt varslene før tillatelsen ble gitt, og da ble ingen av dem lagt inn.
             await NotificationScheduler.reschedule(using: modelContext)
         }
         saveFeedbackTrigger += 1

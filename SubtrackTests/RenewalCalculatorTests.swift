@@ -178,6 +178,61 @@ struct RenewalCalculatorTests {
         #expect(reminder == nil)
     }
 
+    @Test func renewalReminderReportsWhetherItFellBack() {
+        let preferred = RenewalCalculator.reminderDate(
+            forRenewal: date(2026, 5, 15),
+            preferredDaysBefore: 3,
+            after: dateTime(2026, 5, 1, 12),
+            calendar: calendar
+        )
+        #expect(preferred?.date == dateTime(2026, 5, 12, 9))
+        #expect(preferred?.isFallback == false)
+
+        let fallback = RenewalCalculator.reminderDate(
+            forRenewal: date(2026, 5, 15),
+            preferredDaysBefore: 3,
+            after: dateTime(2026, 5, 13, 10),
+            calendar: calendar
+        )
+        #expect(fallback?.date == dateTime(2026, 5, 14, 9))
+        #expect(fallback?.isFallback == true)
+    }
+
+    // MARK: - Klokkeslett midt på dagen
+
+    private var oslo: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Oslo")!
+        return calendar
+    }
+
+    private func osloDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int) -> Date {
+        oslo.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
+    }
+
+    @Test func normalizedToNoonKeepsTheDayLateInTheEvening() {
+        let normalized = RenewalCalculator.normalizedToNoon(osloDate(2026, 5, 15, 23, 30), calendar: oslo)
+        #expect(normalized == osloDate(2026, 5, 15, 12, 0))
+    }
+
+    @Test func normalizedToNoonKeepsTheDayJustAfterMidnight() {
+        let normalized = RenewalCalculator.normalizedToNoon(osloDate(2026, 5, 15, 0, 15), calendar: oslo)
+        #expect(normalized == osloDate(2026, 5, 15, 12, 0))
+    }
+
+    @Test func normalizedToNoonKeepsTheDayWhenDaylightSavingChanges() {
+        // Sommertid starter 29. mars og slutter 25. oktober 2026 i Norge.
+        for (month, day) in [(3, 29), (10, 25)] {
+            for (hour, minute) in [(0, 15), (23, 30)] {
+                let original = osloDate(2026, month, day, hour, minute)
+                let normalized = RenewalCalculator.normalizedToNoon(original, calendar: oslo)
+                #expect(normalized == osloDate(2026, month, day, 12, 0))
+                #expect(oslo.isDate(normalized, inSameDayAs: original))
+                #expect(oslo.component(.hour, from: normalized) == 12)
+            }
+        }
+    }
+
     @Test func reminderDateSubtractsDaysAndSetsHour() {
         let renewal = date(2026, 5, 15)
         let reminder = RenewalCalculator.reminderDate(

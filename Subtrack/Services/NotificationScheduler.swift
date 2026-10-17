@@ -6,6 +6,10 @@ import UserNotifications
 /// Et varsel som skal planlegges, uavhengig av UserNotifications slik at utvelgelsen kan testes.
 struct PlannedReminder: Equatable {
     let identifier: String
+    /// Identifiserer fornyelsen varselet gjelder, se `NotificationScheduler.renewalKey`.
+    /// Stabil selv om fornyelsens nummer i rekken (`identifier`) endrer seg.
+    let renewalKey: String
+    let renewalDate: Date
     let triggerDate: Date
     let title: String
     let body: String
@@ -62,34 +66,48 @@ enum NotificationScheduler {
         _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 
+    /// Stabil nøkkel for én fornyelse av et abonnement: `uuid|åååå-mm-dd`. Bygges fra
+    /// kalenderkomponenter, ikke en formatter, så den ikke avhenger av språkinnstillinger.
+    static func renewalKey(for subscription: Subscription, renewalDate: Date, calendar: Calendar = .current) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: renewalDate)
+        let day = String(format: "%04ld-%02ld-%02ld", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+        return "\(subscription.id.uuidString)|\(day)"
+    }
+
     /// De nærmeste varslene på tvers av alle aktive abonnement, maks `limit` stykker.
+    ///
+    /// Er det foretrukne varseltidspunktet passert (f.eks. et nytt abonnement som fornyes
+    /// i morgen med varsel 3 dager før), brukes et reservetidspunkt - men bare hvis
+    /// fornyelsen ikke står i `alreadyNotified`. Ellers ville et varsel som gikk 3 dager før
+    /// fått et nytt varsel dagen før neste gang appen åpnes.
     static func plannedReminders(
         for subscriptions: [Subscription],
         now: Date = .now,
-        limit: Int = maxPendingReminders
+        limit: Int = maxPendingReminders,
+        alreadyNotified: Set<String> = [],
+        calendar: Calendar = .current
     ) -> [PlannedReminder] {
         let candidates = subscriptions.filter(\.isBilling).flatMap { subscription in
-            subscription.upcomingRenewalDates(count: occurrencesPerSubscription)
+            subscription.upcomingRenewalDates(count: occurrencesPerSubscription, calendar: calendar)
                 .enumerated()
                 .compactMap { occurrence, renewalDate -> PlannedReminder? in
-                    let isTrialEnd = subscription.isTrialEnd(renewalDate)
-                    let triggerDate = isTrialEnd
-                        ? RenewalCalculator.trialReminderDate(
-                            trialEndDate: renewalDate,
-                            preferredDaysBefore: subscription.reminderDaysBefore,
-                            after: now
-                        )
-                        : RenewalCalculator.reminderDate(
-                            nextRenewalDate: renewalDate,
-                            daysBefore: subscription.reminderDaysBefore
-                        )
-                    guard let triggerDate, triggerDate > now else { return nil }
+                    let key = renewalKey(for: subscription, renewalDate: renewalDate, calendar: calendar)
+                    guard let reminder = RenewalCalculator.reminderDate(
+                        forRenewal: renewalDate,
+                        preferredDaysBefore: subscription.reminderDaysBefore,
+                        after: now,
+                        calendar: calendar
+                    ) else { return nil }
+                    if reminder.isFallback && alreadyNotified.contains(key) { return nil }
 
+                    let isTrialEnd = subscription.isTrialEnd(renewalDate, calendar: calendar)
                     let date = renewalDate.formatted(date: .abbreviated, time: .omitted)
                     let price = subscription.price.formatted(.currency(code: subscription.currencyCode))
                     return PlannedReminder(
                         identifier: "\(subscription.id.uuidString)#\(occurrence)",
-                        triggerDate: triggerDate,
+                        renewalKey: key,
+                        renewalDate: renewalDate,
+                        triggerDate: reminder.date,
                         title: isTrialEnd
                             ? "Prøveperioden for \(subscription.name) slutter snart"
                             : "\(subscription.name) fornyes snart",
@@ -107,7 +125,10 @@ enum NotificationScheduler {
     static func reschedule(for subscriptions: [Subscription]) async {
         generation += 1
         let currentGeneration = generation
-        let reminders = plannedReminders(for: subscriptions)
+        let now = Date.now
+        let notified = loadNotifiedRenewals(now: now)
+        let reminders = plannedReminders(for: subscriptions, now: now, alreadyNotified: Set(notified.keys))
+        saveScheduledTriggers(for: reminders)
 
         let center = UNUserNotificationCenter.current()
         // Appen planlegger ingen andre varsler enn disse, så det er trygt å fjerne alle.
@@ -154,5 +175,75 @@ enum NotificationScheduler {
             return
         }
         await reschedule(for: subscriptions)
+    }
+
+    // MARK: - Varsler som allerede har gått
+
+    /// Et planlagt varsel, lagret så neste omplanlegging vet om det har gått.
+    struct ScheduledTrigger: Codable, Equatable {
+        let triggerDate: Date
+        let renewalDate: Date
+    }
+
+    /// `[renewalKey: ScheduledTrigger]` for varslene som ble planlagt sist.
+    private static let scheduledTriggersKey = "NotificationScheduler.scheduledTriggers"
+    /// `[renewalKey: fornyelsesdato]` for fornyelser det allerede er varslet om.
+    private static let notifiedRenewalsKey = "NotificationScheduler.notifiedRenewals"
+    /// Hvor lenge en passert fornyelse huskes. Den trengs bare til fornyelsen er over,
+    /// men litt slingringsmonn tåler en klokke eller tidssone som endres.
+    private static let notifiedRetention: TimeInterval = 7 * 86_400
+
+    /// Flytter varsler fra forrige plan som har gått (`triggerDate` ≤ `now`) over til de
+    /// varslede, og glemmer fornyelser som ligger mer enn en uke tilbake.
+    static func updatedNotifiedRenewals(
+        scheduled: [String: ScheduledTrigger],
+        notified: [String: Date],
+        now: Date
+    ) -> [String: Date] {
+        var result = notified
+        for (key, trigger) in scheduled where trigger.triggerDate <= now {
+            result[key] = trigger.renewalDate
+        }
+        let cutoff = now.addingTimeInterval(-notifiedRetention)
+        return result.filter { $0.value >= cutoff }
+    }
+
+    /// Fornyelser det allerede er varslet om, oppdatert med det som har gått siden sist.
+    private static func loadNotifiedRenewals(now: Date) -> [String: Date] {
+        let notified = updatedNotifiedRenewals(
+            scheduled: load([String: ScheduledTrigger].self, forKey: scheduledTriggersKey) ?? [:],
+            notified: load([String: Date].self, forKey: notifiedRenewalsKey) ?? [:],
+            now: now
+        )
+        save(notified, forKey: notifiedRenewalsKey)
+        return notified
+    }
+
+    private static func saveScheduledTriggers(for reminders: [PlannedReminder]) {
+        let scheduled = Dictionary(
+            reminders.map { ($0.renewalKey, ScheduledTrigger(triggerDate: $0.triggerDate, renewalDate: $0.renewalDate)) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        save(scheduled, forKey: scheduledTriggersKey)
+    }
+
+    /// Leser JSON fra UserDefaults. Mangler eller ugyldige data gir `nil`, så vi starter på nytt.
+    private static func load<Value: Decodable>(_ type: Value.Type, forKey key: String) -> Value? {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            logger.error("Kunne ikke lese \(key, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    private static func save<Value: Encodable>(_ value: Value, forKey key: String) {
+        do {
+            let data = try JSONEncoder().encode(value)
+            UserDefaults.standard.set(data, forKey: key)
+        } catch {
+            logger.error("Kunne ikke lagre \(key, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
     }
 }
