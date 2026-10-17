@@ -1,6 +1,7 @@
 import Foundation
 
-/// Kategori for et abonnement. Lagres som String-rawValue i SwiftData.
+/// Kategori for et abonnement. Lagres som rawValue-tekst i `Subscription.categoryCode`.
+/// Codable trengs fortsatt for det utfasede feltet `Subscription.category`.
 enum SubscriptionCategory: String, Codable, CaseIterable, Identifiable {
     case streaming
     case musikk

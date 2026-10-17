@@ -27,7 +27,7 @@ struct SubscriptionRow: View {
     }
 
     private var intervalText: String {
-        let interval = subscription.billingInterval.displayName
+        let interval = subscription.interval.displayName
         return subscription.isShared ? "\(interval) · delt på \(subscription.splitCount)" : interval
     }
 

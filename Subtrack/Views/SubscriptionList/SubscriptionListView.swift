@@ -46,7 +46,7 @@ struct SubscriptionListView: View {
         }
         var result: [(title: String, subscriptions: [Subscription])] = []
         for subscription in visible {
-            let title = subscription.category.displayName
+            let title = subscription.kind.displayName
             if result.last?.title == title {
                 result[result.count - 1].subscriptions.append(subscription)
             } else {

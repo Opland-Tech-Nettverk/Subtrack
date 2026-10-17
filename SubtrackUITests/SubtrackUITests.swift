@@ -69,7 +69,11 @@ final class SubtrackUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Skriv inn en gyldig pris, f.eks. 149,90"].exists)
         XCTAssertFalse(save.isEnabled)
 
+        // Skjemaet har endringer, så Avbryt må bekreftes før de forkastes.
         app.buttons["Avbryt"].tap()
+        let discard = app.buttons["Forkast endringer"]
+        XCTAssertTrue(discard.waitForExistence(timeout: 5))
+        discard.tap()
         XCTAssertTrue(app.staticTexts["Ingen abonnementer ennå"].waitForExistence(timeout: 5))
     }
 

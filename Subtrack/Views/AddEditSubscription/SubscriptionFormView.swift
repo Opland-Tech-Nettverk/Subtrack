@@ -29,6 +29,50 @@ struct SubscriptionFormView: View {
     @State private var cancelLinkText = ""
     /// Økes ved lagring for å utløse haptisk tilbakemelding.
     @State private var saveFeedbackTrigger = 0
+    /// Utkastet slik det var da skjemaet ble lastet. `nil` betyr at det ikke er lastet ennå.
+    @State private var initialSnapshot: Draft?
+    @State private var showsDiscardConfirmation = false
+
+    /// Alle feltene i skjemaet, slik at vi kan se om brukeren har endret noe.
+    private struct Draft: Equatable {
+        var name: String
+        var priceText: String
+        var currencyCode: String
+        var billingInterval: BillingInterval
+        var nextRenewalDate: Date
+        var hasTrial: Bool
+        var category: SubscriptionCategory
+        var note: String
+        var isActive: Bool
+        var reminderDaysBefore: Int
+        var symbolName: String?
+        var colorHex: String?
+        var splitCount: Int
+        var cancelLinkText: String
+    }
+
+    private var currentSnapshot: Draft {
+        Draft(
+            name: name,
+            priceText: priceText,
+            currencyCode: currencyCode,
+            billingInterval: billingInterval,
+            nextRenewalDate: nextRenewalDate,
+            hasTrial: hasTrial,
+            category: category,
+            note: note,
+            isActive: isActive,
+            reminderDaysBefore: reminderDaysBefore,
+            symbolName: symbolName,
+            colorHex: colorHex,
+            splitCount: splitCount,
+            cancelLinkText: cancelLinkText
+        )
+    }
+
+    private var hasUnsavedChanges: Bool {
+        initialSnapshot != nil && currentSnapshot != initialSnapshot
+    }
 
     private var isEditing: Bool { subscriptionToEdit != nil }
 
@@ -177,7 +221,22 @@ struct SubscriptionFormView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Avbryt") { dismiss() }
+                    Button("Avbryt") {
+                        if hasUnsavedChanges {
+                            showsDiscardConfirmation = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    // Festet til knappen, slik at den vises som popover fra "Avbryt" på iPad.
+                    .confirmationDialog(
+                        "Forkaste endringene?",
+                        isPresented: $showsDiscardConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Forkast endringer", role: .destructive) { dismiss() }
+                        Button("Fortsett å redigere", role: .cancel) {}
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") { save() }
@@ -185,29 +244,34 @@ struct SubscriptionFormView: View {
                 }
             }
             .onAppear(perform: loadExistingValues)
+            // Hindrer at et utfylt skjema forsvinner ved et utilsiktet sveip nedover.
+            .interactiveDismissDisabled(hasUnsavedChanges)
             .sensoryFeedback(.success, trigger: saveFeedbackTrigger)
         }
     }
 
     private func loadExistingValues() {
-        guard let subscription = subscriptionToEdit else {
+        // .onAppear kan kjøre flere ganger - da skal ikke brukerens utkast overskrives.
+        guard initialSnapshot == nil else { return }
+        if let subscription = subscriptionToEdit {
+            name = subscription.name
+            priceText = subscription.price.formatted(.number.grouping(.never))
+            currencyCode = subscription.currencyCode
+            billingInterval = subscription.interval
+            nextRenewalDate = subscription.nextRenewalDate
+            hasTrial = subscription.isInTrial()
+            category = subscription.kind
+            note = subscription.note ?? ""
+            isActive = subscription.isActive
+            reminderDaysBefore = subscription.reminderDaysBefore
+            symbolName = subscription.symbolName
+            colorHex = subscription.colorHex
+            splitCount = subscription.splitCount
+            cancelLinkText = subscription.cancelURLString ?? ""
+        } else {
             currencyCode = mainCurrency
-            return
         }
-        name = subscription.name
-        priceText = subscription.price.formatted(.number.grouping(.never))
-        currencyCode = subscription.currencyCode
-        billingInterval = subscription.billingInterval
-        nextRenewalDate = subscription.nextRenewalDate
-        hasTrial = subscription.isInTrial()
-        category = subscription.category
-        note = subscription.note ?? ""
-        isActive = subscription.isActive
-        reminderDaysBefore = subscription.reminderDaysBefore
-        symbolName = subscription.symbolName
-        colorHex = subscription.colorHex
-        splitCount = subscription.splitCount
-        cancelLinkText = subscription.cancelURLString ?? ""
+        initialSnapshot = currentSnapshot
     }
 
     private func save() {
@@ -222,16 +286,16 @@ struct SubscriptionFormView: View {
             subscription = existing
             // Ny rytme kun når dato eller intervall faktisk er endret - ellers ville en
             // "klemt" dato (f.eks. 28. feb for en 31.-fornyelse) blitt det nye ankeret.
-            if nextRenewalDate != existing.nextRenewalDate || billingInterval != existing.billingInterval {
+            if nextRenewalDate != existing.nextRenewalDate || billingInterval != existing.interval {
                 subscription.billingAnchorDate = nextRenewalDate
             }
             subscription.name = name
             subscription.price = price
             subscription.currencyCode = currencyCode
-            subscription.billingInterval = billingInterval
+            subscription.interval = billingInterval
             subscription.nextRenewalDate = nextRenewalDate
             subscription.trialEndDate = hasTrial ? nextRenewalDate : nil
-            subscription.category = category
+            subscription.kind = category
             subscription.note = noteToSave
             subscription.isActive = isActive
             subscription.reminderDaysBefore = reminderDaysBefore

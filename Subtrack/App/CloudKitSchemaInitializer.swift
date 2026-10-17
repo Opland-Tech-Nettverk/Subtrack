@@ -11,6 +11,12 @@ enum CloudKitSchemaInitializer {
     static let containerIdentifier = "iCloud.com.opland.subtrack"
     static let launchArgument = "-InitializeCloudKitSchema"
 
+    // nonisolated så Error-konformansen ikke blir bundet til MainActor.
+    nonisolated private enum SchemaError: Error {
+        /// Core Data klarte ikke å lage en modell fra SwiftData-typene.
+        case couldNotBuildModel
+    }
+
     static func runIfRequested() {
         guard ProcessInfo.processInfo.arguments.contains(launchArgument) else { return }
 
@@ -23,7 +29,10 @@ enum CloudKitSchemaInitializer {
                 )
                 description.shouldAddStoreAsynchronously = false
 
-                guard let model = NSManagedObjectModel.makeManagedObjectModel(for: [Subscription.self]) else { return }
+                // `return` her ville bare forlatt closuren og skrevet ut "initialisert" likevel.
+                guard let model = NSManagedObjectModel.makeManagedObjectModel(for: [Subscription.self]) else {
+                    throw SchemaError.couldNotBuildModel
+                }
                 let container = NSPersistentCloudKitContainer(name: "Subtrack", managedObjectModel: model)
                 container.persistentStoreDescriptions = [description]
 

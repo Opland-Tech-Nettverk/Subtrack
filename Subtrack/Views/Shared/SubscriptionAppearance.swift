@@ -64,7 +64,7 @@ extension Color {
 
 extension Subscription {
     var displaySymbolName: String {
-        symbolName ?? category.defaultSymbolName
+        symbolName ?? kind.defaultSymbolName
     }
 
     var displayColor: Color {

@@ -39,7 +39,7 @@ struct StatisticsViewModel {
             return ConvertedSubscription(
                 id: subscription.id,
                 name: subscription.name,
-                category: subscription.category,
+                category: subscription.kind,
                 monthlyCost: monthlyCost
             )
         }

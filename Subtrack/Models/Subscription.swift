@@ -11,7 +11,10 @@ final class Subscription {
     var name: String = ""
     var price: Decimal = 0
     var currencyCode: String = "NOK"
-    var billingInterval: BillingInterval = BillingInterval.monthly
+    /// Utfaset: leses bare som reserve for data lagret før `billingIntervalCode` fantes,
+    /// og skrives aldri lenger. Må bli i skjemaet fordi felt ikke kan fjernes fra CloudKit.
+    /// Bruk `interval` i stedet.
+    private var billingInterval: BillingInterval = BillingInterval.monthly
     var nextRenewalDate: Date = Date.now
     /// Datoen fornyelsesrytmen regnes fra. Alle fornyelser beregnes direkte fra denne,
     /// slik at den 31. ikke permanent blir den 28. etter februar. Valgfri slik at
@@ -19,7 +22,10 @@ final class Subscription {
     var billingAnchorDate: Date?
     /// Når en gratis prøveperiode slutter og første betaling skjer. `nil` = ingen prøveperiode.
     var trialEndDate: Date?
-    var category: SubscriptionCategory = SubscriptionCategory.annet
+    /// Utfaset: leses bare som reserve for data lagret før `categoryCode` fantes,
+    /// og skrives aldri lenger. Må bli i skjemaet fordi felt ikke kan fjernes fra CloudKit.
+    /// Bruk `kind` i stedet.
+    private var category: SubscriptionCategory = SubscriptionCategory.annet
     var note: String?
     var isActive: Bool = true
     /// Antall dager før fornyelse appen skal varsle brukeren.
@@ -34,6 +40,15 @@ final class Subscription {
     var cancelURLString: String?
     /// Når abonnementet ble avsluttet og flyttet til arkivet. `nil` = ikke avsluttet.
     var cancelledDate: Date?
+
+    // Kategori og intervall lagres som ren tekst (rawValue) i stedet for som enum, slik at
+    // en eldre versjon av appen ikke krasjer når den leser en verdi den ikke kjenner.
+    // Gi aldri eksisterende rawValues nytt navn. Nye enum-tilfeller er trygge: eldre
+    // versjoner faller da tilbake til det utfasede feltet.
+    /// `SubscriptionCategory.rawValue`. `nil` = lagret før feltet fantes; bruk det utfasede `category`.
+    var categoryCode: String?
+    /// `BillingInterval.rawValue`. `nil` = lagret før feltet fantes; bruk det utfasede `billingInterval`.
+    var billingIntervalCode: String?
 
     init(
         name: String,
@@ -55,11 +70,9 @@ final class Subscription {
         self.name = name
         self.price = price
         self.currencyCode = currencyCode
-        self.billingInterval = billingInterval
         self.nextRenewalDate = nextRenewalDate
         self.billingAnchorDate = nextRenewalDate
         self.trialEndDate = trialEndDate
-        self.category = category
         self.note = note
         self.isActive = isActive
         self.reminderDaysBefore = reminderDaysBefore
@@ -67,6 +80,28 @@ final class Subscription {
         self.colorHex = colorHex
         self.splitCount = splitCount
         self.cancelURLString = cancelURLString
+        // Går via de beregnede egenskapene, slik at nye abonnement får tekstkodene.
+        // De utfasede feltene beholder bare standardverdiene sine.
+        self.interval = billingInterval
+        self.kind = category
+    }
+
+    /// Abonnementets kategori. Bruk denne, ikke det utfasede `category`.
+    var kind: SubscriptionCategory {
+        get { Self.resolve(code: categoryCode, legacy: category) }
+        set { categoryCode = newValue.rawValue }
+    }
+
+    /// Hvor ofte abonnementet fornyes. Bruk denne, ikke det utfasede `billingInterval`.
+    var interval: BillingInterval {
+        get { Self.resolve(code: billingIntervalCode, legacy: billingInterval) }
+        set { billingIntervalCode = newValue.rawValue }
+    }
+
+    /// Tolker en lagret tekstkode. Mangler koden, eller er den ukjent (f.eks. skrevet av
+    /// en nyere versjon av appen), brukes den utfasede verdien i stedet.
+    static func resolve<Value: RawRepresentable>(code: String?, legacy: Value) -> Value where Value.RawValue == String {
+        code.flatMap(Value.init(rawValue:)) ?? legacy
     }
 
     var cancelURL: URL? {
@@ -112,7 +147,7 @@ final class Subscription {
         billingAnchorDate = scheduleAnchor
         nextRenewalDate = RenewalCalculator.advanceToFuture(
             anchor: scheduleAnchor,
-            interval: billingInterval,
+            interval: interval,
             referenceDate: startOfToday,
             calendar: calendar
         )
@@ -122,7 +157,7 @@ final class Subscription {
     func upcomingRenewalDates(count: Int, calendar: Calendar = .current) -> [Date] {
         RenewalCalculator.upcomingRenewalDates(
             anchor: scheduleAnchor,
-            interval: billingInterval,
+            interval: interval,
             onOrAfter: nextRenewalDate,
             count: count,
             calendar: calendar
@@ -138,12 +173,12 @@ final class Subscription {
 
     /// Hva brukerens del koster omregnet til per måned. Brukes i totaler og statistikk.
     var monthlyCost: Decimal {
-        RenewalCalculator.monthlyCost(price: myShare, interval: billingInterval)
+        RenewalCalculator.monthlyCost(price: myShare, interval: interval)
     }
 
     /// Hva brukerens del koster omregnet til per år.
     var yearlyCost: Decimal {
-        RenewalCalculator.yearlyCost(price: myShare, interval: billingInterval)
+        RenewalCalculator.yearlyCost(price: myShare, interval: interval)
     }
 
     /// Antall dager til neste fornyelse, regnet fra starten av i dag.

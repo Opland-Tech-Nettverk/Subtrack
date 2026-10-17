@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 import UserNotifications
 
@@ -28,6 +29,8 @@ enum NotificationScheduler {
     /// Øker for hver omplanlegging, slik at en eldre kjøring som fortsatt legger til
     /// varsler kan avbryte seg selv i stedet for å overskrive en nyere.
     private static var generation = 0
+
+    private static let logger = Logger(subsystem: "com.opland.subtrack", category: "Notifications")
 
     /// Varselkategori og knapp for varsler der abonnementet har en avslutningslenke.
     static let cancelLinkCategory = "renewal-with-cancel-link"
@@ -131,13 +134,25 @@ enum NotificationScheduler {
                 content: content,
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             )
-            try? await center.add(request)
+            do {
+                try await center.add(request)
+            } catch {
+                // Ett varsel som feiler skal ikke stoppe resten.
+                logger.error("Kunne ikke planlegge varsel \(reminder.identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 
     /// Henter alle abonnement fra konteksten (inkludert ulagrede endringer) og planlegger på nytt.
     static func reschedule(using modelContext: ModelContext) async {
-        let subscriptions = (try? modelContext.fetch(FetchDescriptor<Subscription>())) ?? []
+        let subscriptions: [Subscription]
+        do {
+            subscriptions = try modelContext.fetch(FetchDescriptor<Subscription>())
+        } catch {
+            // En tom liste ville fjernet alle varslene, så behold de eksisterende i stedet.
+            logger.error("Kunne ikke hente abonnement for varsler: \(error.localizedDescription, privacy: .public)")
+            return
+        }
         await reschedule(for: subscriptions)
     }
 }

@@ -54,7 +54,7 @@ enum SubscriptionSortOrder: String, CaseIterable, Identifiable {
             }
         case .category:
             return subscriptions.sorted { lhs, rhs in
-                let result = lhs.category.displayName.localizedStandardCompare(rhs.category.displayName)
+                let result = lhs.kind.displayName.localizedStandardCompare(rhs.kind.displayName)
                 return result == .orderedSame ? Self.byRenewal(lhs, rhs) : result == .orderedAscending
             }
         }
@@ -73,6 +73,6 @@ extension Subscription {
     func matches(searchText: String) -> Bool {
         let query = searchText.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return true }
-        return name.localizedStandardContains(query) || category.displayName.localizedStandardContains(query)
+        return name.localizedStandardContains(query) || kind.displayName.localizedStandardContains(query)
     }
 }
