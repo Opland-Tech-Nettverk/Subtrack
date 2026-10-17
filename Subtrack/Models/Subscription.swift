@@ -11,8 +11,9 @@ final class Subscription {
     var name: String = ""
     var price: Decimal = 0
     var currencyCode: String = "NOK"
-    /// Utfaset: leses bare som reserve for data lagret før `billingIntervalCode` fantes,
-    /// og skrives aldri lenger. Må bli i skjemaet fordi felt ikke kan fjernes fra CloudKit.
+    /// Utfaset: leses bare som reserve når `billingIntervalCode` mangler eller er ukjent.
+    /// Skrives fortsatt sammen med koden, så eldre app-versjoner som bare kjenner dette
+    /// feltet viser riktig intervall. Må bli i skjemaet fordi felt ikke kan fjernes fra CloudKit.
     /// Bruk `interval` i stedet.
     private var billingInterval: BillingInterval = BillingInterval.monthly
     var nextRenewalDate: Date = Date.now
@@ -22,8 +23,9 @@ final class Subscription {
     var billingAnchorDate: Date?
     /// Når en gratis prøveperiode slutter og første betaling skjer. `nil` = ingen prøveperiode.
     var trialEndDate: Date?
-    /// Utfaset: leses bare som reserve for data lagret før `categoryCode` fantes,
-    /// og skrives aldri lenger. Må bli i skjemaet fordi felt ikke kan fjernes fra CloudKit.
+    /// Utfaset: leses bare som reserve når `categoryCode` mangler eller er ukjent.
+    /// Skrives fortsatt sammen med koden, så eldre app-versjoner som bare kjenner dette
+    /// feltet viser riktig kategori. Må bli i skjemaet fordi felt ikke kan fjernes fra CloudKit.
     /// Bruk `kind` i stedet.
     private var category: SubscriptionCategory = SubscriptionCategory.annet
     var note: String?
@@ -44,7 +46,7 @@ final class Subscription {
     // Kategori og intervall lagres som ren tekst (rawValue) i stedet for som enum, slik at
     // en eldre versjon av appen ikke krasjer når den leser en verdi den ikke kjenner.
     // Gi aldri eksisterende rawValues nytt navn. Nye enum-tilfeller er trygge: eldre
-    // versjoner faller da tilbake til det utfasede feltet.
+    // versjoner faller da tilbake til det utfasede feltet (se `legacyCategories`).
     /// `SubscriptionCategory.rawValue`. `nil` = lagret før feltet fantes; bruk det utfasede `category`.
     var categoryCode: String?
     /// `BillingInterval.rawValue`. `nil` = lagret før feltet fantes; bruk det utfasede `billingInterval`.
@@ -80,8 +82,8 @@ final class Subscription {
         self.colorHex = colorHex
         self.splitCount = splitCount
         self.cancelURLString = cancelURLString
-        // Går via de beregnede egenskapene, slik at nye abonnement får tekstkodene.
-        // De utfasede feltene beholder bare standardverdiene sine.
+        // Går via de beregnede egenskapene, slik at både tekstkodene og de utfasede
+        // feltene får verdien.
         self.interval = billingInterval
         self.kind = category
     }
@@ -89,13 +91,31 @@ final class Subscription {
     /// Abonnementets kategori. Bruk denne, ikke det utfasede `category`.
     var kind: SubscriptionCategory {
         get { Self.resolve(code: categoryCode, legacy: category) }
-        set { categoryCode = newValue.rawValue }
+        set {
+            categoryCode = newValue.rawValue
+            // Eldre versjoner leser bare det utfasede feltet. Uten dette ville de vist
+            // «Annet» for alt som er lagret av denne versjonen.
+            category = Self.legacyCategories.contains(newValue) ? newValue : .annet
+        }
     }
+
+    // Verdiene eldre app-versjoner kjenner. Bare disse kan skrives til de utfasede feltene,
+    // ellers krasjer eldre versjoner når de leser en ukjent verdi. IKKE legg nye tilfeller
+    // til her - nye kategorier og intervaller skrives som reserveverdien i stedet.
+    private static let legacyCategories: Set<SubscriptionCategory> = [
+        .streaming, .musikk, .programvare, .trening, .nettsky, .annet
+    ]
+    private static let legacyIntervals: Set<BillingInterval> = [.weekly, .monthly, .quarterly, .yearly]
 
     /// Hvor ofte abonnementet fornyes. Bruk denne, ikke det utfasede `billingInterval`.
     var interval: BillingInterval {
         get { Self.resolve(code: billingIntervalCode, legacy: billingInterval) }
-        set { billingIntervalCode = newValue.rawValue }
+        set {
+            billingIntervalCode = newValue.rawValue
+            // Eldre versjoner leser bare det utfasede feltet. Uten dette ville et årlig
+            // abonnement vist som månedlig der, og totalen blitt 12 ganger for høy.
+            billingInterval = Self.legacyIntervals.contains(newValue) ? newValue : .monthly
+        }
     }
 
     /// Tolker en lagret tekstkode. Mangler koden, eller er den ukjent (f.eks. skrevet av

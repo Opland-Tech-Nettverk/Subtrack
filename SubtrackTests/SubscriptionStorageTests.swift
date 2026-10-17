@@ -28,6 +28,32 @@ struct SubscriptionStorageTests {
         #expect(subscription.interval == .quarterly)
     }
 
+    // MARK: - Utfasede felt for eldre versjoner
+
+    /// Uten tekstkoden leser `kind`/`interval` det utfasede feltet, slik en eldre app-versjon
+    /// gjør. Det viser om det utfasede feltet faktisk ble skrevet.
+    @Test func initAlsoWritesLegacyFieldsForOlderVersions() {
+        let subscription = Subscription(name: "Adobe", price: 6990, billingInterval: .yearly, category: .programvare)
+
+        subscription.categoryCode = nil
+        subscription.billingIntervalCode = nil
+
+        #expect(subscription.kind == .programvare)
+        #expect(subscription.interval == .yearly)
+    }
+
+    @Test func settersAlsoUpdateLegacyFields() {
+        let subscription = Subscription(name: "Spotify", price: 129)
+        subscription.kind = .musikk
+        subscription.interval = .quarterly
+
+        subscription.categoryCode = nil
+        subscription.billingIntervalCode = nil
+
+        #expect(subscription.kind == .musikk)
+        #expect(subscription.interval == .quarterly)
+    }
+
     // MARK: - Tolkning med reserve
 
     @Test func resolveUsesValidCode() {
