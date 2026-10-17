@@ -190,6 +190,38 @@ final class Subscription {
         )
     }
 
+    /// Flytter lagrede datoer med klokkeslett nær midnatt til kl. 12 samme dag, så de viser
+    /// samme dato i andre tidssoner. Se `RenewalCalculator.normalizedToNoonIfNearMidnight`
+    /// for hvorfor bare tidspunkter nær midnatt flyttes. `cancelledDate` røres ikke.
+    func normalizeStoredDates(calendar: Calendar = .current) {
+        // Fornyelsene regnes ut fra ankeret med ankerets klokkeslett, og en fornyelse som
+        // ligger tidligere på dagen enn `nextRenewalDate` hoppes over. Må én av dem flyttes,
+        // flyttes derfor begge til kl. 12, så de fortsatt har samme klokkeslett.
+        let needsNormalizing = [nextRenewalDate, billingAnchorDate].contains { date in
+            guard let date else { return false }
+            return RenewalCalculator.normalizedToNoonIfNearMidnight(date, calendar: calendar) != date
+        }
+        if needsNormalizing {
+            // Tilordner bare ved faktisk endring, så det ikke blir unødvendige skrivinger til iCloud.
+            let renewal = RenewalCalculator.normalizedToNoon(nextRenewalDate, calendar: calendar)
+            if renewal != nextRenewalDate {
+                nextRenewalDate = renewal
+            }
+            if let billingAnchorDate {
+                let anchor = RenewalCalculator.normalizedToNoon(billingAnchorDate, calendar: calendar)
+                if anchor != billingAnchorDate {
+                    self.billingAnchorDate = anchor
+                }
+            }
+        }
+        if let trialEndDate {
+            let trialEnd = RenewalCalculator.normalizedToNoonIfNearMidnight(trialEndDate, calendar: calendar)
+            if trialEnd != trialEndDate {
+                self.trialEndDate = trialEnd
+            }
+        }
+    }
+
     /// De neste `count` fornyelsene, fra og med `nextRenewalDate`.
     func upcomingRenewalDates(count: Int, calendar: Calendar = .current) -> [Date] {
         RenewalCalculator.upcomingRenewalDates(

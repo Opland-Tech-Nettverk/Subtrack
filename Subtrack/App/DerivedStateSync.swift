@@ -24,12 +24,19 @@ private struct DerivedStateSync: ViewModifier {
     }
 
     private func refresh() {
+        // Eldre datoer kan ha et klokkeslett nær midnatt og vise en annen dag i en annen
+        // tidssone. De flyttes til kl. 12 før datoene flyttes frem, så fremflyttingen arver
+        // det nye klokkeslettet. Gjelder også arkiverte abonnement: ankeret brukes igjen hvis
+        // de gjenopprettes. Endringen utløser én runde til via onChange, som ikke endrer noe.
+        for subscription in subscriptions {
+            subscription.normalizeStoredDates()
+        }
         for subscription in subscriptions where !subscription.isCancelled {
             subscription.advanceRenewalDateIfPast()
         }
         WidgetSnapshotStore.update(with: subscriptions)
-        // Trygt å kalle mange ganger raskt etter hverandre: generasjonstelleren i
-        // NotificationScheduler gjør at bare den siste planleggingen blir stående.
+        // Trygt å kalle mange ganger raskt etter hverandre: NotificationScheduler kjører
+        // omplanleggingene etter tur og avbryter eldre, så bare den siste blir stående.
         Task { await NotificationScheduler.reschedule(for: subscriptions) }
     }
 }
