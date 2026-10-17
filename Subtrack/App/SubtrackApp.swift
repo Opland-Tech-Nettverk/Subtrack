@@ -14,6 +14,12 @@ struct SubtrackApp: App {
 
     private static let logger = Logger(subsystem: "com.opland.subtrack", category: "Database")
 
+    /// Alle containere åpnes med det versjonerte skjemaet, så fremtidige skjemaendringer
+    /// kan migreres trygt. Se `SubtrackSchema.swift`.
+    private static var schema: Schema {
+        Schema(versionedSchema: SubtrackSchemaV1.self)
+    }
+
     init() {
         UNUserNotificationCenter.current().delegate = notificationDelegate
         NotificationScheduler.registerCategories()
@@ -30,6 +36,7 @@ struct SubtrackApp: App {
             switch databaseState {
             case .normal, .localOnly:
                 MainTabView()
+                    .keepsDerivedStateInSync()
                     .environment(exchangeRates)
                     .onChange(of: scenePhase, initial: true) { _, phase in
                         guard phase == .active else { return }
@@ -52,7 +59,11 @@ struct SubtrackApp: App {
         // Synkroniserer automatisk med iCloud når appen har iCloud/CloudKit-capability:
         // SwiftData finner containeren i entitlements. Uten den lagres alt bare lokalt.
         do {
-            let container = try ModelContainer(for: Subscription.self, configurations: ModelConfiguration())
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: SubtrackMigrationPlan.self,
+                configurations: ModelConfiguration()
+            )
             return (container, .normal)
         } catch {
             logger.error("Kunne ikke åpne databasen med iCloud-synk: \(String(describing: error), privacy: .public)")
@@ -62,7 +73,8 @@ struct SubtrackApp: App {
         // appen, og brukeren ser fortsatt dataene sine.
         do {
             let container = try ModelContainer(
-                for: Subscription.self,
+                for: schema,
+                migrationPlan: SubtrackMigrationPlan.self,
                 configurations: ModelConfiguration(cloudKitDatabase: .none)
             )
             logger.warning("Databasen er åpnet uten iCloud-synk. Endringer lagres bare lokalt.")
@@ -78,7 +90,8 @@ struct SubtrackApp: App {
     private static func makeInMemoryContainer() -> ModelContainer {
         do {
             return try ModelContainer(
-                for: Subscription.self,
+                for: schema,
+                migrationPlan: SubtrackMigrationPlan.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             )
         } catch {

@@ -88,8 +88,7 @@ struct ArchivedSubscriptionsView: View {
             subscription.advanceRenewalDateIfPast()
         }
         restoreFeedbackTrigger += 1
-        WidgetSnapshotStore.update(using: modelContext)
-        Task { await NotificationScheduler.reschedule(using: modelContext) }
+        // Widget og varsler oppdateres av `keepsDerivedStateInSync()`, også ved sletting.
     }
 }
 
@@ -111,7 +110,8 @@ private struct TotalSavingsView: View {
 
     private var yearlySavings: ConvertedTotal {
         CurrencyConverter.total(
-            of: subscriptions.map { ($0.yearlyCost, $0.currencyCode) },
+            // Abonnement som var pauset da de ble avsluttet, sparer ingenting fremover.
+            of: subscriptions.map { ($0.projectedYearlySavings, $0.currencyCode) },
             in: mainCurrency,
             using: exchangeRates.rates
         )

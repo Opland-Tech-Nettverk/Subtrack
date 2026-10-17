@@ -60,15 +60,19 @@ struct NotificationSchedulerTests {
         #expect(reminders.isEmpty)
     }
 
-    @Test func skipsRemindersThatWouldFireInThePast() {
-        // Fornyes om 1 dag, varsel 3 dager før -> første varsel er allerede passert.
-        let reminders = NotificationScheduler.plannedReminders(
-            for: [subscription(daysUntilRenewal: 1, reminderDaysBefore: 3)],
-            now: now
-        )
-        #expect(!reminders.contains { $0.identifier.hasSuffix("#0") })
+    @Test func fallsBackWhenTheLeadTimeHasPassed() {
+        // Fornyes om 1 dag, varsel 3 dager før -> det foretrukne varselet er allerede passert,
+        // så det kommer dagen før eller samme morgen i stedet.
+        let renewing = subscription(daysUntilRenewal: 1, reminderDaysBefore: 3)
+        let reminders = NotificationScheduler.plannedReminders(for: [renewing], now: now)
+
+        let first = reminders.first { $0.identifier.hasSuffix("#0") }
+        let fallbacks = [1, 0].compactMap {
+            RenewalCalculator.reminderDate(nextRenewalDate: renewing.nextRenewalDate, daysBefore: $0)
+        }
+        #expect(first.map { fallbacks.contains($0.triggerDate) } == true)
         #expect(reminders.allSatisfy { $0.triggerDate > now })
-        #expect(reminders.count == NotificationScheduler.occurrencesPerSubscription - 1)
+        #expect(reminders.count == NotificationScheduler.occurrencesPerSubscription)
     }
 
     @Test func remindersCarryTheCancelLinkWhenSet() {
@@ -83,5 +87,125 @@ struct NotificationSchedulerTests {
         #expect(!linked.isEmpty)
         #expect(linked.allSatisfy { $0.cancelURL?.absoluteString == "https://www.netflix.com/cancelplan" })
         #expect(unlinked.allSatisfy { $0.cancelURL == nil })
+    }
+
+    // MARK: - Faste datoer
+
+    private var oslo: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Oslo")!
+        return calendar
+    }
+
+    private func osloDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int) -> Date {
+        oslo.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
+    }
+
+    /// Søndag 18. oktober 2026 kl. 14:00 i Oslo.
+    private var fixedNow: Date { osloDate(2026, 10, 18, 14) }
+
+    private func fixedSubscription(renewal: Date, trialEnd: Date? = nil) -> Subscription {
+        Subscription(
+            name: "Fast",
+            price: 100,
+            billingInterval: .monthly,
+            nextRenewalDate: renewal,
+            trialEndDate: trialEnd,
+            reminderDaysBefore: 3
+        )
+    }
+
+    private func firstReminder(in reminders: [PlannedReminder]) -> PlannedReminder? {
+        reminders.first { $0.identifier.hasSuffix("#0") }
+    }
+
+    @Test func renewalTomorrowFallsBackToTheDayBeforeOrTheSameMorning() {
+        let renewing = fixedSubscription(renewal: osloDate(2026, 10, 19, 12))
+
+        // Klokken 08:00 rekker vi fortsatt kl. 09:00 dagen før.
+        let morning = NotificationScheduler.plannedReminders(for: [renewing], now: osloDate(2026, 10, 18, 8), calendar: oslo)
+        #expect(firstReminder(in: morning)?.triggerDate == osloDate(2026, 10, 18, 9))
+
+        // Klokken 14:00 er det passert, så varselet kommer samme morgen.
+        let afternoon = NotificationScheduler.plannedReminders(for: [renewing], now: fixedNow, calendar: oslo)
+        let first = firstReminder(in: afternoon)
+        #expect(first?.triggerDate == osloDate(2026, 10, 19, 9))
+        #expect(first?.renewalDate == osloDate(2026, 10, 19, 12))
+        #expect(first?.renewalKey == "\(renewing.id.uuidString)|2026-10-19")
+    }
+
+    @Test func noFallbackForARenewalThatWasAlreadyNotified() {
+        let renewing = fixedSubscription(renewal: osloDate(2026, 10, 19, 12))
+        let key = NotificationScheduler.renewalKey(for: renewing, renewalDate: renewing.nextRenewalDate, calendar: oslo)
+
+        let reminders = NotificationScheduler.plannedReminders(
+            for: [renewing],
+            now: fixedNow,
+            alreadyNotified: [key],
+            calendar: oslo
+        )
+
+        #expect(firstReminder(in: reminders) == nil)
+        // Senere fornyelser har egne nøkler og varsles som vanlig.
+        #expect(reminders.count == NotificationScheduler.occurrencesPerSubscription - 1)
+    }
+
+    @Test func preferredLeadTimeIsUsedWhenItIsStillAhead() {
+        // Fornyes om 10 dager: varsel nøyaktig 3 dager før kl. 09:00. 25. oktober er dagen
+        // sommertiden slutter, og det skal ikke flytte klokkeslettet.
+        let renewing = fixedSubscription(renewal: osloDate(2026, 10, 28, 12))
+        let key = NotificationScheduler.renewalKey(for: renewing, renewalDate: renewing.nextRenewalDate, calendar: oslo)
+
+        // `alreadyNotified` gjelder bare reservetidspunktene.
+        for notified in [Set<String>(), Set([key])] {
+            let reminders = NotificationScheduler.plannedReminders(
+                for: [renewing],
+                now: fixedNow,
+                alreadyNotified: notified,
+                calendar: oslo
+            )
+            #expect(firstReminder(in: reminders)?.triggerDate == osloDate(2026, 10, 25, 9))
+        }
+    }
+
+    @Test func shortTrialFallsBackOnlyOnce() {
+        let trialEnd = osloDate(2026, 10, 20, 12)
+        let trial = fixedSubscription(renewal: trialEnd, trialEnd: trialEnd)
+
+        let reminders = NotificationScheduler.plannedReminders(for: [trial], now: fixedNow, calendar: oslo)
+        let first = firstReminder(in: reminders)
+        #expect(first?.title == "Prøveperioden for Fast slutter snart")
+        #expect(first?.triggerDate == osloDate(2026, 10, 19, 9))
+
+        // Varselet dagen før har gått: ikke et nytt samme morgen.
+        let key = NotificationScheduler.renewalKey(for: trial, renewalDate: trialEnd, calendar: oslo)
+        let afterwards = NotificationScheduler.plannedReminders(
+            for: [trial],
+            now: osloDate(2026, 10, 19, 10),
+            alreadyNotified: [key],
+            calendar: oslo
+        )
+        #expect(firstReminder(in: afterwards) == nil)
+    }
+
+    @Test func firedRemindersAreRememberedForAWeek() {
+        let scheduled = [
+            "fired": NotificationScheduler.ScheduledTrigger(
+                triggerDate: osloDate(2026, 10, 18, 9),
+                renewalDate: osloDate(2026, 10, 21, 12)
+            ),
+            "pending": NotificationScheduler.ScheduledTrigger(
+                triggerDate: osloDate(2026, 10, 19, 9),
+                renewalDate: osloDate(2026, 10, 22, 12)
+            )
+        ]
+        let notified = [
+            "recent": osloDate(2026, 10, 14, 12),
+            "old": osloDate(2026, 10, 1, 12)
+        ]
+
+        let result = NotificationScheduler.updatedNotifiedRenewals(scheduled: scheduled, notified: notified, now: fixedNow)
+
+        #expect(result == ["fired": osloDate(2026, 10, 21, 12), "recent": osloDate(2026, 10, 14, 12)])
     }
 }

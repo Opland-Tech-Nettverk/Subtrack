@@ -135,9 +135,26 @@ final class Subscription {
     var isBilling: Bool { isActive && !isCancelled }
 
     /// Hva brukeren har spart siden abonnementet ble avsluttet, i abonnementets valuta.
+    /// Se `savingsStartDate` for når besparelsen begynner.
     func savedSinceCancellation(now: Date = .now, calendar: Calendar = .current) -> Decimal {
-        guard let cancelledDate else { return 0 }
-        return RenewalCalculator.savings(yearlyCost: yearlyCost, since: cancelledDate, now: now, calendar: calendar)
+        guard let savingsStartDate else { return 0 }
+        return RenewalCalculator.savings(yearlyCost: yearlyCost, since: savingsStartDate, now: now, calendar: calendar)
+    }
+
+    /// Hva et avsluttet abonnement sparer per år fremover, i abonnementets valuta.
+    /// 0 hvis det ikke er avsluttet, eller var pauset da det ble avsluttet.
+    var projectedYearlySavings: Decimal {
+        savingsStartDate == nil ? 0 : yearlyCost
+    }
+
+    /// Når et avsluttet abonnement begynner å spare penger. `nil` = det sparer ingenting.
+    private var savingsStartDate: Date? {
+        // Arkivering endrer ikke `isActive`, så et inaktivt abonnement i arkivet var
+        // pauset da det ble avsluttet - brukeren betalte ingenting fra før.
+        guard let cancelledDate, isActive else { return nil }
+        // Avsluttet i en gratis prøveperiode: ingenting er spart før første trekk ville skjedd.
+        guard let trialEndDate else { return cancelledDate }
+        return max(cancelledDate, trialEndDate)
     }
 
     var scheduleAnchor: Date {
