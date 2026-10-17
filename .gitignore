@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Xcode – brukerspesifikke innstillinger og byggeprodukter
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.xcscmblueprint
+*.xccheckout
+
+# Arkiver og eksporterte apper
+*.xcarchive
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/

@@ -6,14 +6,100 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0AFF2E43307F97B900CE1C7A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0AFF2E42307F97B900CE1C7A /* WidgetKit.framework */; };
+		0AFF2E45307F97B900CE1C7A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0AFF2E44307F97B900CE1C7A /* SwiftUI.framework */; };
+		0AFF2E50307F97BA00CE1C7A /* SubtrackWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0AFF2E40307F97B900CE1C7A /* SubtrackWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0ABD230F3082666600BC42DA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000100000000;
+			remoteInfo = Subtrack;
+		};
+		0ABE1231307E59BA00B9271D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000100000000;
+			remoteInfo = Subtrack;
+		};
+		0AFF2E4E307F97BA00CE1C7A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0AFF2E3F307F97B900CE1C7A;
+			remoteInfo = SubtrackWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0AFF2E51307F97BA00CE1C7A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				0AFF2E50307F97BA00CE1C7A /* SubtrackWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Subtrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Subtrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0ABD230B3082666600BC42DA /* SubtrackUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SubtrackUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0ABE122D307E59BA00B9271D /* SubtrackTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SubtrackTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0AFF2E40307F97B900CE1C7A /* SubtrackWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SubtrackWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		0AFF2E42307F97B900CE1C7A /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = /System/Library/Frameworks/WidgetKit.framework; sourceTree = "<absolute>"; };
+		0AFF2E44307F97B900CE1C7A /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = /System/Library/Frameworks/SwiftUI.framework; sourceTree = "<absolute>"; };
+		0AFF2E57307F97E100CE1C7A /* SubtrackWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SubtrackWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0AFF2E54307F97BA00CE1C7A /* Exceptions for "SubtrackWidget" folder in "SubtrackWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0AFF2E3F307F97B900CE1C7A /* SubtrackWidgetExtension */;
+		};
+		0AFF2E693081552D00CE1C7A /* Exceptions for "Subtrack" folder in "Subtrack" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 000000000000000100000000 /* Subtrack */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		000000000000000000000010 /* Subtrack */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0AFF2E693081552D00CE1C7A /* Exceptions for "Subtrack" folder in "Subtrack" target */,
+			);
 			path = Subtrack;
+			sourceTree = "<group>";
+		};
+		0ABD230C3082666600BC42DA /* SubtrackUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SubtrackUITests;
+			sourceTree = "<group>";
+		};
+		0ABE122E307E59BA00B9271D /* SubtrackTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SubtrackTests;
+			sourceTree = "<group>";
+		};
+		0AFF2E46307F97B900CE1C7A /* SubtrackWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0AFF2E54307F97BA00CE1C7A /* Exceptions for "SubtrackWidget" folder in "SubtrackWidgetExtension" target */,
+			);
+			path = SubtrackWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -24,13 +110,35 @@
 			files = (
 			);
 		};
+		0ABD23083082666600BC42DA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		0ABE122A307E59BA00B9271D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		0AFF2E3D307F97B900CE1C7A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				0AFF2E45307F97B900CE1C7A /* SwiftUI.framework in Frameworks */,
+				0AFF2E43307F97B900CE1C7A /* WidgetKit.framework in Frameworks */,
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				0AFF2E57307F97E100CE1C7A /* SubtrackWidgetExtension.entitlements */,
 				000000000000000000000010 /* Subtrack */,
+				0ABE122E307E59BA00B9271D /* SubtrackTests */,
+				0AFF2E46307F97B900CE1C7A /* SubtrackWidget */,
+				0ABD230C3082666600BC42DA /* SubtrackUITests */,
+				0AFF2E41307F97B900CE1C7A /* Frameworks */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -39,8 +147,20 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000120 /* Subtrack.app */,
+				0ABE122D307E59BA00B9271D /* SubtrackTests.xctest */,
+				0AFF2E40307F97B900CE1C7A /* SubtrackWidgetExtension.appex */,
+				0ABD230B3082666600BC42DA /* SubtrackUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		0AFF2E41307F97B900CE1C7A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0AFF2E42307F97B900CE1C7A /* WidgetKit.framework */,
+				0AFF2E44307F97B900CE1C7A /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -53,8 +173,12 @@
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
 				000000000000000140000000 /* Resources */,
+				0AFF2E51307F97BA00CE1C7A /* Embed Foundation Extensions */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				0AFF2E4F307F97BA00CE1C7A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* Subtrack */,
@@ -64,6 +188,66 @@
 			productReference = 000000000000000000000120 /* Subtrack.app */;
 			productType = "com.apple.product-type.application";
 		};
+		0ABD230A3082666600BC42DA /* SubtrackUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0ABD23113082666600BC42DA /* Build configuration list for PBXNativeTarget "SubtrackUITests" */;
+			buildPhases = (
+				0ABD23073082666600BC42DA /* Sources */,
+				0ABD23083082666600BC42DA /* Frameworks */,
+				0ABD23093082666600BC42DA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0ABD23103082666600BC42DA /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0ABD230C3082666600BC42DA /* SubtrackUITests */,
+			);
+			name = SubtrackUITests;
+			productName = SubtrackUITests;
+			productReference = 0ABD230B3082666600BC42DA /* SubtrackUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		0ABE122C307E59BA00B9271D /* SubtrackTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0ABE1233307E59BA00B9271D /* Build configuration list for PBXNativeTarget "SubtrackTests" */;
+			buildPhases = (
+				0ABE1229307E59BA00B9271D /* Sources */,
+				0ABE122A307E59BA00B9271D /* Frameworks */,
+				0ABE122B307E59BA00B9271D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0ABE1232307E59BA00B9271D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0ABE122E307E59BA00B9271D /* SubtrackTests */,
+			);
+			name = SubtrackTests;
+			productName = SubtrackTests;
+			productReference = 0ABE122D307E59BA00B9271D /* SubtrackTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		0AFF2E3F307F97B900CE1C7A /* SubtrackWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0AFF2E55307F97BA00CE1C7A /* Build configuration list for PBXNativeTarget "SubtrackWidgetExtension" */;
+			buildPhases = (
+				0AFF2E3C307F97B900CE1C7A /* Sources */,
+				0AFF2E3D307F97B900CE1C7A /* Frameworks */,
+				0AFF2E3E307F97B900CE1C7A /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				0AFF2E46307F97B900CE1C7A /* SubtrackWidget */,
+			);
+			name = SubtrackWidgetExtension;
+			productName = SubtrackWidgetExtension;
+			productReference = 0AFF2E40307F97B900CE1C7A /* SubtrackWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -71,11 +255,22 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2630;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					000000000000000100000000 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					0ABD230A3082666600BC42DA = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 000000000000000100000000;
+					};
+					0ABE122C307E59BA00B9271D = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 000000000000000100000000;
+					};
+					0AFF2E3F307F97B900CE1C7A = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -94,12 +289,30 @@
 			projectRoot = "";
 			targets = (
 				000000000000000100000000 /* Subtrack */,
+				0ABE122C307E59BA00B9271D /* SubtrackTests */,
+				0AFF2E3F307F97B900CE1C7A /* SubtrackWidgetExtension */,
+				0ABD230A3082666600BC42DA /* SubtrackUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		000000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		0ABD23093082666600BC42DA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		0ABE122B307E59BA00B9271D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		0AFF2E3E307F97B900CE1C7A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -112,7 +325,40 @@
 			files = (
 			);
 		};
+		0ABD23073082666600BC42DA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		0ABE1229307E59BA00B9271D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		0AFF2E3C307F97B900CE1C7A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0ABD23103082666600BC42DA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000100000000 /* Subtrack */;
+			targetProxy = 0ABD230F3082666600BC42DA /* PBXContainerItemProxy */;
+		};
+		0ABE1232307E59BA00B9271D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000100000000 /* Subtrack */;
+			targetProxy = 0ABE1231307E59BA00B9271D /* PBXContainerItemProxy */;
+		};
+		0AFF2E4F307F97BA00CE1C7A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0AFF2E3F307F97B900CE1C7A /* SubtrackWidgetExtension */;
+			targetProxy = 0AFF2E4E307F97BA00CE1C7A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		000000000000000011000000 /* Debug configuration for PBXProject "Subtrack" */ = {
@@ -250,13 +496,19 @@
 		000000000000000111000000 /* Debug configuration for PBXNativeTarget "Subtrack" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Subtrack/Subtrack.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = JYL8AWTBZ7;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = 76M3G78HV8;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Subtrack/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SubTrack;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -267,34 +519,41 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.opland.subtrack;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
 		000000000000000112000000 /* Release configuration for PBXNativeTarget "Subtrack" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Subtrack/Subtrack.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = JYL8AWTBZ7;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = 76M3G78HV8;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Subtrack/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SubTrack;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -305,21 +564,203 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.opland.subtrack;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		0ABD23123082666600BC42DA /* Debug configuration for PBXNativeTarget "SubtrackUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 76M3G78HV8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.opland.subtrack.SubtrackUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Subtrack;
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		0ABD23133082666600BC42DA /* Release configuration for PBXNativeTarget "SubtrackUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 76M3G78HV8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.opland.subtrack.SubtrackUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Subtrack;
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
+		0ABE1234307E59BA00B9271D /* Debug configuration for PBXNativeTarget "SubtrackTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = devplaceholder.O0RNTXE1.Subtrack.SubtrackTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Subtrack.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Subtrack";
+			};
+			name = Debug;
+		};
+		0ABE1235307E59BA00B9271D /* Release configuration for PBXNativeTarget "SubtrackTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = devplaceholder.O0RNTXE1.Subtrack.SubtrackTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Subtrack.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Subtrack";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		0AFF2E52307F97BA00CE1C7A /* Debug configuration for PBXNativeTarget "SubtrackWidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = SubtrackWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = 76M3G78HV8;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SubtrackWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SubtrackWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.opland.subtrack.SubtrackWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		0AFF2E53307F97BA00CE1C7A /* Release configuration for PBXNativeTarget "SubtrackWidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = SubtrackWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = 76M3G78HV8;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SubtrackWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SubtrackWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.opland.subtrack.SubtrackWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 27.0;
 			};
 			name = Release;
 		};
@@ -339,6 +780,30 @@
 			buildConfigurations = (
 				000000000000000111000000 /* Debug configuration for PBXNativeTarget "Subtrack" */,
 				000000000000000112000000 /* Release configuration for PBXNativeTarget "Subtrack" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		0ABD23113082666600BC42DA /* Build configuration list for PBXNativeTarget "SubtrackUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0ABD23123082666600BC42DA /* Debug configuration for PBXNativeTarget "SubtrackUITests" */,
+				0ABD23133082666600BC42DA /* Release configuration for PBXNativeTarget "SubtrackUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		0ABE1233307E59BA00B9271D /* Build configuration list for PBXNativeTarget "SubtrackTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0ABE1234307E59BA00B9271D /* Debug configuration for PBXNativeTarget "SubtrackTests" */,
+				0ABE1235307E59BA00B9271D /* Release configuration for PBXNativeTarget "SubtrackTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		0AFF2E55307F97BA00CE1C7A /* Build configuration list for PBXNativeTarget "SubtrackWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0AFF2E52307F97BA00CE1C7A /* Debug configuration for PBXNativeTarget "SubtrackWidgetExtension" */,
+				0AFF2E53307F97BA00CE1C7A /* Release configuration for PBXNativeTarget "SubtrackWidgetExtension" */,
 			);
 			defaultConfigurationName = Release;
 		};
