@@ -54,7 +54,9 @@ struct ShortcutDraftBuilderTests {
         interval: BillingInterval? = nil,
         category: SubscriptionCategory? = nil,
         nextRenewalDate: Date? = nil,
-        catalog: ServiceCatalog = .bundled
+        // `nil` i stedet for `.bundled` som standardverdi: standardverdier evalueres utenfor
+        // hovedaktøren i test-targeten, mens `ServiceCatalog.bundled` er bundet til den.
+        catalog: ServiceCatalog? = nil
     ) -> SubscriptionDraft {
         ShortcutDraftBuilder.makeDraft(
             name: name,
@@ -62,7 +64,7 @@ struct ShortcutDraftBuilderTests {
             interval: interval,
             category: category,
             nextRenewalDate: nextRenewalDate,
-            catalog: catalog
+            catalog: catalog ?? .bundled
         )
     }
 

@@ -8,6 +8,10 @@ import Foundation
 /// `nonisolated` fordi `AppIntent` arver `Sendable`, så samsvaret og de statiske kravene ikke
 /// kan være bundet til hovedaktøren, som er standard i app-targeten. Bare `perform()` kjører
 /// på hovedaktøren, der skjemaets ruter bor.
+///
+/// `@Parameter`-egenskapene er `@MainActor`: ellers arver de `nonisolated` fra typen, og det
+/// godtar ikke kompilatoren for egenskaper med property wrapper (feil i Swift 6). `$name` osv.
+/// arver fortsatt `nonisolated`, så nøkkelstiene i `parameterSummary` virker som før.
 nonisolated struct AddSubscriptionIntent: AppIntent {
     static let title: LocalizedStringResource = "Legg til abonnement"
 
@@ -24,20 +28,20 @@ nonisolated struct AddSubscriptionIntent: AppIntent {
     static var supportedModes: IntentModes { .foreground }
 
     // Navnet kan ikke stå i Siri-frasen (bare `AppEntity` og `AppEnum` kan det), så Siri spør etter det.
-    @Parameter(title: "Navn", requestValueDialog: IntentDialog("Hva heter abonnementet?"))
+    @MainActor @Parameter(title: "Navn", requestValueDialog: IntentDialog("Hva heter abonnementet?"))
     var name: String
 
-    @Parameter(title: "Pris")
+    @MainActor @Parameter(title: "Pris")
     var price: Double?
 
-    @Parameter(title: "Fornyes")
+    @MainActor @Parameter(title: "Fornyes")
     var interval: ShortcutIntervalOption?
 
-    @Parameter(title: "Kategori")
+    @MainActor @Parameter(title: "Kategori")
     var category: ShortcutCategoryOption?
 
     // Bare dato: skjemaet setter klokkeslettet til kl. 12 når abonnementet lagres.
-    @Parameter(title: "Neste fornyelse", kind: .date)
+    @MainActor @Parameter(title: "Neste fornyelse", kind: .date)
     var nextRenewalDate: Date?
 
     static var parameterSummary: some ParameterSummary {

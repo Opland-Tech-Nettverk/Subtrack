@@ -181,9 +181,12 @@ struct StatisticsView: View {
         }
         // Standardaksen gir små, mørkegrå navn som nesten forsvinner mot svart i mørk modus.
         // Bare etiketter, som standardaksen for navn, men i samme stil som beløpene.
+        // Plasseringen er satt eksplisitt: med standardverdiene regner Swift Charts ut et eget
+        // ankerpunkt og logger «Custom UnitPoint values are not supported». Navnet henger fra
+        // toppen av raden, inne i diagrammet langs venstrekanten, rett over stolpen.
         .chartYAxis {
-            AxisMarks { _ in
-                AxisValueLabel()
+            AxisMarks(preset: .inset, position: .leading) { _ in
+                AxisValueLabel(centered: false, anchor: .topLeading)
                     .font(.caption)
                     .foregroundStyle(Color.secondary)
             }
