@@ -275,10 +275,10 @@
 				};
 			};
 			buildConfigurationList = 000000000000000010000000 /* Build configuration list for PBXProject "Subtrack" */;
-			developmentRegion = en;
+			developmentRegion = nb;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				nb,
 				Base,
 			);
 			mainGroup = 000000000000000000000001;
