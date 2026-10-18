@@ -1,0 +1,1036 @@
+{
+  "pricesCheckedDate": "2026-10-18",
+  "services": [
+    {
+      "id": "1password",
+      "name": "1Password",
+      "aliases": [
+        "1password",
+        "1password.com",
+        "agilebits"
+      ],
+      "category": "programvare",
+      "symbolName": "terminal",
+      "colorHex": "#5E5CE6",
+      "cancelURL": "https://my.1password.com/billing",
+      "plans": [
+        {
+          "label": "Individual",
+          "price": "47.88",
+          "currencyCode": "USD",
+          "interval": "yearly"
+        },
+        {
+          "label": "Families",
+          "price": "71.88",
+          "currencyCode": "USD",
+          "interval": "yearly"
+        }
+      ]
+    },
+    {
+      "id": "adobe-creative-cloud",
+      "name": "Adobe Creative Cloud",
+      "aliases": [
+        "adobe creative cloud",
+        "creative cloud",
+        "adobe systems",
+        "adobe"
+      ],
+      "category": "programvare",
+      "symbolName": "terminal",
+      "colorHex": "#FF453A",
+      "cancelURL": "https://account.adobe.com/plans",
+      "plans": [
+        {
+          "label": "Creative Cloud Pro",
+          "price": "961.25",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Creative Cloud Standard",
+          "price": "763.75",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Photography",
+          "price": "293.75",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "aftenposten",
+      "name": "Aftenposten",
+      "aliases": [
+        "aftenposten",
+        "aftenposten.no"
+      ],
+      "category": "nyheter",
+      "symbolName": "newspaper",
+      "colorHex": "#8E8E93",
+      "cancelURL": "https://www.aftenposten.no/minside",
+      "plans": [
+        {
+          "label": "Standard",
+          "price": "299.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Basis",
+          "price": "199.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Standard med e-avis",
+          "price": "349.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "allente",
+      "name": "Allente",
+      "aliases": [
+        "allente",
+        "allente.no",
+        "allente norge"
+      ],
+      "category": "streaming",
+      "symbolName": "play.tv",
+      "colorHex": "#FF9F0A",
+      "cancelURL": "https://www.allente.no/min-side",
+      "plans": [
+        {
+          "label": "Standard",
+          "price": "649.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Basic",
+          "price": "449.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium",
+          "price": "749.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "apple-music",
+      "name": "Apple Music",
+      "aliases": [
+        "apple music",
+        "applemusic"
+      ],
+      "category": "musikk",
+      "symbolName": "music.note",
+      "colorHex": "#FF375F",
+      "cancelURL": "https://apps.apple.com/account/subscriptions",
+      "plans": [
+        {
+          "label": "Individuell",
+          "price": "139.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Familie",
+          "price": "219.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Student",
+          "price": "75.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "apple-one",
+      "name": "Apple One",
+      "aliases": [
+        "apple one",
+        "appleone"
+      ],
+      "category": "nettsky",
+      "symbolName": "icloud",
+      "colorHex": "#8E8E93",
+      "cancelURL": "https://apps.apple.com/account/subscriptions",
+      "plans": [
+        {
+          "label": "Individuell",
+          "price": "219.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Familie",
+          "price": "289.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "apple-tv",
+      "name": "Apple TV",
+      "aliases": [
+        "apple tv",
+        "appletv"
+      ],
+      "category": "streaming",
+      "symbolName": "play.tv",
+      "colorHex": "#8E8E93",
+      "cancelURL": "https://apps.apple.com/account/subscriptions",
+      "plans": [
+        {
+          "label": "Apple TV",
+          "price": "119.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "bookbeat",
+      "name": "BookBeat",
+      "aliases": [
+        "bookbeat",
+        "bookbeat.com"
+      ],
+      "category": "boker",
+      "symbolName": "book",
+      "colorHex": "#FF375F",
+      "cancelURL": "https://www.bookbeat.com/no/account",
+      "plans": [
+        {
+          "label": "Standard",
+          "price": "149.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Basic",
+          "price": "99.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium",
+          "price": "199.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "aliases": [
+        "chatgpt",
+        "openai",
+        "chatgpt subscription"
+      ],
+      "category": "ai",
+      "symbolName": "sparkles",
+      "colorHex": "#30D158",
+      "cancelURL": "https://chatgpt.com/#settings/Subscription",
+      "plans": []
+    },
+    {
+      "id": "claude",
+      "name": "Claude",
+      "aliases": [
+        "claude.ai",
+        "anthropic",
+        "claude pro"
+      ],
+      "category": "ai",
+      "symbolName": "sparkles",
+      "colorHex": "#FF9F0A",
+      "cancelURL": "https://claude.ai/settings/billing",
+      "plans": [
+        {
+          "label": "Pro",
+          "price": "20.00",
+          "currencyCode": "USD",
+          "interval": "monthly"
+        },
+        {
+          "label": "Pro (årlig)",
+          "price": "200.00",
+          "currencyCode": "USD",
+          "interval": "yearly"
+        }
+      ]
+    },
+    {
+      "id": "deezer",
+      "name": "Deezer",
+      "aliases": [
+        "deezer",
+        "deezer.com"
+      ],
+      "category": "musikk",
+      "symbolName": "music.note",
+      "colorHex": "#BF5AF2",
+      "cancelURL": "https://www.deezer.com/account/subscription",
+      "plans": [
+        {
+          "label": "Premium",
+          "price": "129.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Family",
+          "price": "209.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium (årlig)",
+          "price": "1160.00",
+          "currencyCode": "NOK",
+          "interval": "yearly"
+        }
+      ]
+    },
+    {
+      "id": "disney-plus",
+      "name": "Disney+",
+      "aliases": [
+        "disneyplus",
+        "disney plus",
+        "disneyplus.com"
+      ],
+      "category": "streaming",
+      "symbolName": "play.tv",
+      "colorHex": "#5E5CE6",
+      "cancelURL": "https://www.disneyplus.com/account/subscription",
+      "plans": [
+        {
+          "label": "Standard",
+          "price": "129.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Standard med reklame",
+          "price": "89.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium",
+          "price": "179.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "dn",
+      "name": "DN",
+      "aliases": [
+        "dn.no",
+        "dagens næringsliv",
+        "dn media"
+      ],
+      "category": "nyheter",
+      "symbolName": "newspaper",
+      "colorHex": "#FF375F",
+      "cancelURL": "https://www.dn.no/min-side/",
+      "plans": [
+        {
+          "label": "Basis",
+          "price": "449.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Total",
+          "price": "579.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Total Helg",
+          "price": "799.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "dropbox",
+      "name": "Dropbox",
+      "aliases": [
+        "dropbox",
+        "dropbox.com"
+      ],
+      "category": "nettsky",
+      "symbolName": "icloud",
+      "colorHex": "#5E5CE6",
+      "cancelURL": "https://www.dropbox.com/account/plan",
+      "plans": [
+        {
+          "label": "Plus",
+          "price": "11.99",
+          "currencyCode": "EUR",
+          "interval": "monthly"
+        },
+        {
+          "label": "Plus (årlig)",
+          "price": "119.88",
+          "currencyCode": "EUR",
+          "interval": "yearly"
+        }
+      ]
+    },
+    {
+      "id": "duolingo",
+      "name": "Duolingo",
+      "aliases": [
+        "duolingo",
+        "duolingo.com",
+        "super duolingo"
+      ],
+      "category": "programvare",
+      "symbolName": "book",
+      "colorHex": "#30D158",
+      "cancelURL": "https://www.duolingo.com/settings/subscription",
+      "plans": []
+    },
+    {
+      "id": "evo",
+      "name": "EVO",
+      "aliases": [
+        "evo fitness",
+        "evofitness",
+        "evofitness.no"
+      ],
+      "category": "trening",
+      "symbolName": "figure.run",
+      "colorHex": "#8E8E93",
+      "cancelURL": "https://evofitness.no/support/hvordan-avslutter-jeg-medlemskapet/",
+      "plans": []
+    },
+    {
+      "id": "fitness24seven",
+      "name": "Fitness24Seven",
+      "aliases": [
+        "fitness24seven",
+        "fitness 24 seven",
+        "f24s"
+      ],
+      "category": "trening",
+      "symbolName": "figure.run",
+      "colorHex": "#FF453A",
+      "cancelURL": null,
+      "plans": []
+    },
+    {
+      "id": "google-one",
+      "name": "Google One",
+      "aliases": [
+        "google one",
+        "googleone",
+        "google storage"
+      ],
+      "category": "nettsky",
+      "symbolName": "icloud",
+      "colorHex": "#30D158",
+      "cancelURL": "https://one.google.com/settings",
+      "plans": [
+        {
+          "label": "100 GB",
+          "price": "24.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "100 GB (årlig)",
+          "price": "239.00",
+          "currencyCode": "NOK",
+          "interval": "yearly"
+        },
+        {
+          "label": "2 TB (Google AI Plus)",
+          "price": "125.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "hbo-max",
+      "name": "HBO Max",
+      "aliases": [
+        "hbo max",
+        "hbomax",
+        "hbomax.com",
+        "max.com",
+        "hbo nordic"
+      ],
+      "category": "streaming",
+      "symbolName": "film",
+      "colorHex": "#BF5AF2",
+      "cancelURL": "https://auth.hbomax.com/subscription",
+      "plans": [
+        {
+          "label": "Standard",
+          "price": "149.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Basis med reklame",
+          "price": "89.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium",
+          "price": "189.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "icloud",
+      "name": "iCloud+",
+      "aliases": [
+        "icloud",
+        "icloud storage",
+        "icloud lagring"
+      ],
+      "category": "nettsky",
+      "symbolName": "icloud",
+      "colorHex": "#40C8E0",
+      "cancelURL": "https://apps.apple.com/account/subscriptions",
+      "plans": [
+        {
+          "label": "50 GB",
+          "price": "12.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "200 GB",
+          "price": "39.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "2 TB",
+          "price": "129.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "microsoft-365",
+      "name": "Microsoft 365",
+      "aliases": [
+        "microsoft 365",
+        "microsoft365",
+        "office 365"
+      ],
+      "category": "programvare",
+      "symbolName": "terminal",
+      "colorHex": "#FF9F0A",
+      "cancelURL": "https://account.microsoft.com/services",
+      "plans": [
+        {
+          "label": "Personal (årlig)",
+          "price": "1189.00",
+          "currencyCode": "NOK",
+          "interval": "yearly"
+        },
+        {
+          "label": "Family (årlig)",
+          "price": "1559.00",
+          "currencyCode": "NOK",
+          "interval": "yearly"
+        },
+        {
+          "label": "Personal",
+          "price": "121.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "netflix",
+      "name": "Netflix",
+      "aliases": [
+        "netflix",
+        "netflix.com",
+        "netflix international"
+      ],
+      "category": "streaming",
+      "symbolName": "play.tv",
+      "colorHex": "#FF453A",
+      "cancelURL": "https://www.netflix.com/cancelplan",
+      "plans": [
+        {
+          "label": "Standard",
+          "price": "149.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Basis",
+          "price": "119.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium",
+          "price": "219.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "nintendo-switch-online",
+      "name": "Nintendo Switch Online",
+      "aliases": [
+        "nintendo switch online",
+        "nintendo eshop",
+        "nintendo"
+      ],
+      "category": "spill",
+      "symbolName": "gamecontroller",
+      "colorHex": "#FF453A",
+      "cancelURL": "https://ec.nintendo.com/my/membership",
+      "plans": []
+    },
+    {
+      "id": "patreon",
+      "name": "Patreon",
+      "aliases": [
+        "patreon",
+        "patreon.com",
+        "patreon membership"
+      ],
+      "category": "annet",
+      "symbolName": "heart",
+      "colorHex": "#FF9F0A",
+      "cancelURL": "https://www.patreon.com/settings/memberships",
+      "plans": []
+    },
+    {
+      "id": "playstation-plus",
+      "name": "PlayStation Plus",
+      "aliases": [
+        "playstation plus",
+        "playstation network",
+        "ps plus",
+        "psn",
+        "sony interactive"
+      ],
+      "category": "spill",
+      "symbolName": "gamecontroller",
+      "colorHex": "#5E5CE6",
+      "cancelURL": "https://www.playstation.com/no-no/support/subscriptions/cancel-playstation-plus/",
+      "plans": [
+        {
+          "label": "Essential",
+          "price": "115.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Essential (12 mnd)",
+          "price": "840.00",
+          "currencyCode": "NOK",
+          "interval": "yearly"
+        },
+        {
+          "label": "Extra",
+          "price": "179.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "podimo",
+      "name": "Podimo",
+      "aliases": [
+        "podimo",
+        "podimo.com"
+      ],
+      "category": "musikk",
+      "symbolName": "headphones",
+      "colorHex": "#FF9F0A",
+      "cancelURL": "https://podimo.com/no/account",
+      "plans": [
+        {
+          "label": "Premium",
+          "price": "99.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium Plus",
+          "price": "169.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "prime-video",
+      "name": "Prime Video",
+      "aliases": [
+        "prime video",
+        "primevideo",
+        "primevideo.com",
+        "amazon prime video",
+        "amzn prime"
+      ],
+      "category": "streaming",
+      "symbolName": "film",
+      "colorHex": "#40C8E0",
+      "cancelURL": "https://www.primevideo.com/settings",
+      "plans": [
+        {
+          "label": "Prime Video",
+          "price": "79.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "sats",
+      "name": "SATS",
+      "aliases": [
+        "sats",
+        "sats norge",
+        "sats.no"
+      ],
+      "category": "trening",
+      "symbolName": "figure.run",
+      "colorHex": "#5E5CE6",
+      "cancelURL": "https://www.sats.no/min-side",
+      "plans": []
+    },
+    {
+      "id": "spotify",
+      "name": "Spotify",
+      "aliases": [
+        "spotify",
+        "spotify.com",
+        "spotify ab",
+        "spotify p",
+        "spotifyse"
+      ],
+      "category": "musikk",
+      "symbolName": "music.note",
+      "colorHex": "#30D158",
+      "cancelURL": "https://www.spotify.com/no/account/subscription/",
+      "plans": [
+        {
+          "label": "Individual",
+          "price": "139.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Duo",
+          "price": "189.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Family",
+          "price": "219.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "storytel",
+      "name": "Storytel",
+      "aliases": [
+        "storytel",
+        "storytel.com"
+      ],
+      "category": "boker",
+      "symbolName": "book",
+      "colorHex": "#FF9F0A",
+      "cancelURL": "https://support.storytel.com/hc/en-001/articles/360010486719-Cancel-your-subscription",
+      "plans": [
+        {
+          "label": "Unlimited",
+          "price": "219.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium",
+          "price": "189.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Basic",
+          "price": "149.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "strava",
+      "name": "Strava",
+      "aliases": [
+        "strava",
+        "strava.com",
+        "strava inc"
+      ],
+      "category": "trening",
+      "symbolName": "figure.run",
+      "colorHex": "#FF9F0A",
+      "cancelURL": "https://www.strava.com/account",
+      "plans": [
+        {
+          "label": "Månedlig",
+          "price": "99.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Årlig",
+          "price": "799.00",
+          "currencyCode": "NOK",
+          "interval": "yearly"
+        },
+        {
+          "label": "Familie (årlig)",
+          "price": "1399.00",
+          "currencyCode": "NOK",
+          "interval": "yearly"
+        }
+      ]
+    },
+    {
+      "id": "strim",
+      "name": "Strim",
+      "aliases": [
+        "strim",
+        "strim.no",
+        "telia strim"
+      ],
+      "category": "streaming",
+      "symbolName": "play.tv",
+      "colorHex": "#BF5AF2",
+      "cancelURL": "https://www.strim.no/min-side",
+      "plans": []
+    },
+    {
+      "id": "tidal",
+      "name": "TIDAL",
+      "aliases": [
+        "tidal",
+        "tidal.com",
+        "tidal music"
+      ],
+      "category": "musikk",
+      "symbolName": "headphones",
+      "colorHex": "#8E8E93",
+      "cancelURL": "https://account.tidal.com/subscription",
+      "plans": []
+    },
+    {
+      "id": "tv2-play",
+      "name": "TV 2 Play",
+      "aliases": [
+        "tv 2 play",
+        "tv2 play",
+        "tv2play",
+        "play.tv2.no"
+      ],
+      "category": "streaming",
+      "symbolName": "play.tv",
+      "colorHex": "#FF375F",
+      "cancelURL": "https://play.tv2.no/konto/abonnement",
+      "plans": [
+        {
+          "label": "Standard",
+          "price": "199.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Start",
+          "price": "109.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium",
+          "price": "409.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "vg-pluss",
+      "name": "VG+",
+      "aliases": [
+        "vg pluss",
+        "vgpluss",
+        "vg.no",
+        "verdens gang"
+      ],
+      "category": "nyheter",
+      "symbolName": "newspaper",
+      "colorHex": "#FF453A",
+      "cancelURL": "https://www.vg.no/minside",
+      "plans": [
+        {
+          "label": "VG+",
+          "price": "99.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "VG+ (ukentlig)",
+          "price": "59.00",
+          "currencyCode": "NOK",
+          "interval": "weekly"
+        },
+        {
+          "label": "VG+ Sport",
+          "price": "159.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "viaplay",
+      "name": "Viaplay",
+      "aliases": [
+        "viaplay",
+        "viaplay.no",
+        "viaplay group"
+      ],
+      "category": "streaming",
+      "symbolName": "play.tv",
+      "colorHex": "#BF5AF2",
+      "cancelURL": "https://viaplay.no/account",
+      "plans": [
+        {
+          "label": "Film & Serier",
+          "price": "169.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Film & Serier med reklame",
+          "price": "109.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Total",
+          "price": "799.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "xbox-game-pass",
+      "name": "Xbox Game Pass",
+      "aliases": [
+        "xbox game pass",
+        "game pass",
+        "gamepass"
+      ],
+      "category": "spill",
+      "symbolName": "gamecontroller",
+      "colorHex": "#30D158",
+      "cancelURL": "https://account.microsoft.com/services",
+      "plans": [
+        {
+          "label": "Ultimate",
+          "price": "209.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium",
+          "price": "149.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Essential",
+          "price": "105.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "youtube-premium",
+      "name": "YouTube Premium",
+      "aliases": [
+        "youtube premium",
+        "youtubepremium",
+        "google youtube"
+      ],
+      "category": "streaming",
+      "symbolName": "play.tv",
+      "colorHex": "#FF453A",
+      "cancelURL": "https://www.youtube.com/paid_memberships",
+      "plans": [
+        {
+          "label": "Personlig",
+          "price": "169.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Familie",
+          "price": "269.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        },
+        {
+          "label": "Premium Lite",
+          "price": "99.00",
+          "currencyCode": "NOK",
+          "interval": "monthly"
+        }
+      ]
+    }
+  ]
+}

@@ -191,6 +191,10 @@ extension SubscriptionCategory {
         case .programvare: .blue
         case .trening: .orange
         case .nettsky: .cyan
+        case .nyheter: .brown
+        case .boker: .green
+        case .spill: .pink
+        case .ai: .indigo
         case .annet: .gray
         }
     }

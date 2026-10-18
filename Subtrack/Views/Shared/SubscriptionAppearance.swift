@@ -33,7 +33,7 @@ enum SubscriptionAppearance {
         IconOption(symbolName: "phone", name: "Mobil"),
         IconOption(symbolName: "wifi", name: "Internett"),
         IconOption(symbolName: "bolt", name: "Strøm"),
-        IconOption(symbolName: "sparkles", name: "Annet")
+        IconOption(symbolName: "sparkles", name: "AI")
     ]
 
     // Ingen egen blå: "Standard" er appens blå aksentfarge.

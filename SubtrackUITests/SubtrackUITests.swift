@@ -24,6 +24,9 @@ final class SubtrackUITests: XCTestCase {
         nameField.tap()
         nameField.typeText(name)
 
+        // Navn som finnes i katalogen (f.eks. "Netflix") gir en forslagsrad mellom Navn og Pris.
+        // Raden trykkes ikke, så navnet endres ikke. Pris finnes på merkelappen og ikke på
+        // posisjonen, og XCUITest ruller til feltet om det skulle havne utenfor skjermen.
         let priceField = app.textFields["Pris"]
         priceField.tap()
         priceField.typeText(price)
@@ -89,6 +92,30 @@ final class SubtrackUITests: XCTestCase {
         XCTAssertTrue(discard.waitForExistence(timeout: 5))
         discard.tap()
         XCTAssertTrue(app.staticTexts["Ingen abonnementer ennå"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testCatalogSuggestionFillsTheForm() {
+        app.buttons["Legg til"].tap()
+
+        let nameField = app.textFields["Navn"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        nameField.typeText("netf")
+
+        let suggestion = app.buttons["catalogSuggestion.netflix"]
+        XCTAssertTrue(suggestion.waitForExistence(timeout: 5), "Netflix skulle vært foreslått fra katalogen")
+        suggestion.tap()
+
+        XCTAssertEqual(nameField.value as? String, "Netflix")
+        // Et tomt felt viser plassholderen "Pris" som verdi, så sjekk at det står et tall der.
+        let priceValue = app.textFields["Pris"].value as? String ?? ""
+        XCTAssertTrue(priceValue.contains(where: \.isNumber), "Prisen skulle vært fylt ut: \(priceValue)")
+        // Forslaget skjules når navnet er fylt ut.
+        XCTAssertTrue(waitForDisappearance(of: suggestion))
+
+        app.buttons["Lagre"].tap()
+        XCTAssertTrue(row(named: "Netflix").waitForExistence(timeout: 5), "Netflix skulle vært i listen etter lagring")
     }
 
     @MainActor
