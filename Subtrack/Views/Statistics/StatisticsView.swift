@@ -56,9 +56,11 @@ struct StatisticsView: View {
                     } description: {
                         Text("Legg til abonnementer i Oversikt, så ser du her hva de koster per kategori.")
                     } actions: {
-                        // Fremhevet knapp gir et langt større trykkområde enn en ren tekstknapp.
+                        // Fremhevet knapp med stor kontrollstørrelse: uten `.large` ble den bare
+                        // ca. 28 pt høy her, mens stor kontrollstørrelse gir minst 44 pt høyde.
                         Button("Gå til Oversikt", action: showOverview)
                             .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
                     }
                 } else {
                     // Det finnes abonnementer, men alle er pauset eller avsluttet.
@@ -69,6 +71,7 @@ struct StatisticsView: View {
                     } actions: {
                         Button("Gå til Oversikt", action: showOverview)
                             .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
                     }
                 }
             }

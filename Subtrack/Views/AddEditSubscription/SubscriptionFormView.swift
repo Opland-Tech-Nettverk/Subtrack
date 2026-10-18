@@ -94,9 +94,9 @@ struct SubscriptionFormView: View {
     /// Nevner at ulagrede endringer forkastes, siden "Avslutt" ikke spør om dem slik "Avbryt" gjør.
     private var archiveConfirmationMessage: Text {
         if hasUnsavedChanges {
-            return Text("Abonnementet flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere. Endringene du ikke har lagret, blir forkastet.")
+            return Text("Det flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere. Endringene du ikke har lagret, blir forkastet.")
         }
-        return Text("Abonnementet flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere.")
+        return Text("Det flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere.")
     }
 
     private var cancelURL: URL? {
@@ -265,6 +265,14 @@ struct SubscriptionFormView: View {
             } message: { _ in
                 archiveConfirmationMessage
             }
+            // Varsel av samme grunn: som popover ved store tekststørrelser falt
+            // "Fortsett å redigere" bort, så "Forkast endringer" var eneste valg.
+            .alert("Forkaste endringene?", isPresented: $showsDiscardConfirmation) {
+                Button("Forkast endringer", role: .destructive) { dismiss() }
+                Button("Fortsett å redigere", role: .cancel) {}
+            } message: {
+                Text("Endringene du har gjort, blir ikke lagret.")
+            }
             .navigationTitle(isEditing ? "Rediger abonnement" : "Nytt abonnement")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -275,15 +283,6 @@ struct SubscriptionFormView: View {
                         } else {
                             dismiss()
                         }
-                    }
-                    // Festet til knappen, slik at den vises som popover fra "Avbryt" på iPad.
-                    .confirmationDialog(
-                        "Forkaste endringene?",
-                        isPresented: $showsDiscardConfirmation,
-                        titleVisibility: .visible
-                    ) {
-                        Button("Forkast endringer", role: .destructive) { dismiss() }
-                        Button("Fortsett å redigere", role: .cancel) {}
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
