@@ -92,9 +92,10 @@ struct SubscriptionFormView: View {
     }
 
     /// Nevner at ulagrede endringer forkastes, siden "Avslutt" ikke spør om dem slik "Avbryt" gjør.
+    /// Advarselen står først, så den synes uten å rulle ved største tekststørrelse.
     private var archiveConfirmationMessage: Text {
         if hasUnsavedChanges {
-            return Text("Det flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere. Endringene du ikke har lagret, blir forkastet.")
+            return Text("Endringene du ikke har lagret, blir forkastet. Det flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere.")
         }
         return Text("Det flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere.")
     }
