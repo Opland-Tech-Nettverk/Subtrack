@@ -17,12 +17,14 @@ struct DateNormalizationTests {
         return calendar
     }
 
+    /// Eldre datoer i testene har sekunder, så de aldri havner på et kvarter ved et uhell
+    /// (`RenewalCalculator.isOnQuarterHour`) og slutter å prøve ryddingen.
     private func osloDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int, _ second: Int = 0) -> Date {
         oslo.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute, second: second))!
     }
 
     @Test func movesDatesNearMidnightToNoonTheSameDay() {
-        let lateEvening = osloDate(2026, 1, 15, 23, 1)
+        let lateEvening = osloDate(2026, 1, 15, 23, 1, 17)
         let subscription = Subscription(name: "Netflix", price: 149, nextRenewalDate: lateEvening, trialEndDate: lateEvening)
 
         subscription.normalizeStoredDates(calendar: oslo)
@@ -47,7 +49,7 @@ struct DateNormalizationTests {
 
     @Test func leavesMissingAnchorAndCancelledDateAlone() {
         // Abonnement lagret før ankerdatoen fantes.
-        let subscription = Subscription(name: "Spotify", price: 129, nextRenewalDate: osloDate(2026, 1, 15, 0, 41))
+        let subscription = Subscription(name: "Spotify", price: 129, nextRenewalDate: osloDate(2026, 1, 15, 0, 41, 32))
         subscription.billingAnchorDate = nil
         let cancelled = osloDate(2026, 1, 10, 23, 30)
         subscription.cancelledDate = cancelled
@@ -65,7 +67,7 @@ struct DateNormalizationTests {
             name: "Nettsky",
             price: 29,
             billingInterval: .monthly,
-            nextRenewalDate: osloDate(2026, 1, 31, 23, 1)
+            nextRenewalDate: osloDate(2026, 1, 31, 23, 1, 17)
         )
 
         subscription.normalizeStoredDates(calendar: oslo)
@@ -166,7 +168,7 @@ struct DateNormalizationTests {
     }
 
     @Test func secondPassChangesNothing() {
-        let lateEvening = osloDate(2026, 1, 15, 22, 8)
+        let lateEvening = osloDate(2026, 1, 15, 22, 8, 43)
         let subscription = Subscription(name: "Netflix", price: 149, nextRenewalDate: lateEvening, trialEndDate: lateEvening)
         subscription.normalizeStoredDates(calendar: oslo)
         let firstPass = [subscription.nextRenewalDate, subscription.billingAnchorDate, subscription.trialEndDate]

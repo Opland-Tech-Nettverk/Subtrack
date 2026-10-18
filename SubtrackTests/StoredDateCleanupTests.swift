@@ -20,6 +20,8 @@ struct StoredDateCleanupTests {
         calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute, second: second))!
     }
 
+    /// Eldre datoer i testene har sekunder, så de aldri havner på et kvarter ved et uhell
+    /// (`RenewalCalculator.isOnQuarterHour`) og slutter å prøve ryddingen.
     private func osloDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int, _ second: Int = 0) -> Date {
         date(in: oslo, year, month, day, hour, minute, second)
     }
@@ -41,7 +43,7 @@ struct StoredDateCleanupTests {
     @Test func runsOnlyOncePerSubscription() {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let lateEvening = osloDate(2026, 1, 15, 23, 1)
+        let lateEvening = osloDate(2026, 1, 15, 23, 1, 17)
         let subscription = Subscription(name: "Netflix", price: 149, nextRenewalDate: lateEvening)
 
         let firstRun = StoredDateCleanup.runIfNeeded(for: [subscription], defaults: defaults, calendar: oslo)
@@ -74,7 +76,7 @@ struct StoredDateCleanupTests {
         #expect(!emptyRun)
         #expect(defaults.object(forKey: StoredDateCleanup.cleanedIDsKey) == nil)
 
-        let subscription = Subscription(name: "Netflix", price: 149, nextRenewalDate: osloDate(2026, 1, 15, 23, 1))
+        let subscription = Subscription(name: "Netflix", price: 149, nextRenewalDate: osloDate(2026, 1, 15, 23, 1, 17))
         let laterRun = StoredDateCleanup.runIfNeeded(for: [subscription], defaults: defaults, calendar: oslo)
 
         #expect(laterRun)
@@ -85,8 +87,8 @@ struct StoredDateCleanupTests {
     @Test func cleansArchivedSubscriptionsToo() {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let active = Subscription(name: "Netflix", price: 149, nextRenewalDate: osloDate(2026, 1, 15, 23, 1))
-        let archived = Subscription(name: "Spotify", price: 129, nextRenewalDate: osloDate(2026, 1, 20, 0, 41))
+        let active = Subscription(name: "Netflix", price: 149, nextRenewalDate: osloDate(2026, 1, 15, 23, 1, 17))
+        let archived = Subscription(name: "Spotify", price: 129, nextRenewalDate: osloDate(2026, 1, 20, 0, 41, 32))
         let cancelled = osloDate(2026, 1, 10, 23, 30)
         archived.cancelledDate = cancelled
 
@@ -104,7 +106,7 @@ struct StoredDateCleanupTests {
     @Test func cleansRecordsThatArriveLater() {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let lateEvening = osloDate(2026, 1, 15, 23, 1)
+        let lateEvening = osloDate(2026, 1, 15, 23, 1, 17)
         let first = Subscription(name: "Netflix", price: 149, nextRenewalDate: lateEvening)
 
         let firstRun = StoredDateCleanup.runIfNeeded(for: [first], defaults: defaults, calendar: oslo)
@@ -134,7 +136,7 @@ struct StoredDateCleanupTests {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let subscriptions = [
-            Subscription(name: "Netflix", price: 149, nextRenewalDate: osloDate(2026, 1, 15, 23, 1)),
+            Subscription(name: "Netflix", price: 149, nextRenewalDate: osloDate(2026, 1, 15, 23, 1, 17)),
             Subscription(name: "Spotify", price: 129, nextRenewalDate: osloDate(2026, 1, 20, 12, 0)),
         ]
 

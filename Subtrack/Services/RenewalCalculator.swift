@@ -61,10 +61,12 @@ enum RenewalCalculator {
 
     /// Om tidspunktet ligger nøyaktig på et kvarter, med null sekunder. Alle tidssoner ligger
     /// et helt antall kvarter fra UTC, og referansedatoen er midnatt UTC, så kl. 12:00 i en
-    /// hvilken som helst tidssone ligger alltid på et kvarter. Eldre datoer kom fra `Date.now`
-    /// da skjemaet ble åpnet og har vilkårlige sekunder og brøkdeler, så de treffer i praksis
-    /// aldri et kvarter. Brukes til å la datoer som allerede er satt til kl. 12 - av skjemaet
-    /// eller av ryddingen på en annen enhet - være i fred.
+    /// hvilken som helst tidssone ligger alltid på et kvarter. Eldre datoer ligger som regel
+    /// ikke på et kvarter: de som kom fra `Date.now` da skjemaet ble åpnet, har sekunder og
+    /// brøkdeler, mens de som ble valgt i datovelgeren, har hele minutter, så omtrent 1 av 15
+    /// av dem treffer et kvarter tilfeldigvis (se `StoredDateCleanup`). Brukes til å la datoer
+    /// som allerede er satt til kl. 12 - av skjemaet eller av ryddingen på en annen enhet -
+    /// være i fred.
     static func isOnQuarterHour(_ date: Date) -> Bool {
         date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 900) == 0
     }
