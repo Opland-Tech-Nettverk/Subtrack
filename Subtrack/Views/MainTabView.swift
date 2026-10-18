@@ -1,19 +1,28 @@
 import SwiftUI
 import SwiftData
 
+/// Fanene i appens rot-navigasjon.
+enum AppTab: Hashable {
+    case overview, statistics
+}
+
 /// Appens rot-navigasjon: oversikten over abonnement og statistikkskjermen.
 struct MainTabView: View {
+    @State private var selectedTab: AppTab = .overview
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             SubscriptionListView()
                 .tabItem {
                     Label("Oversikt", systemImage: "list.bullet")
                 }
+                .tag(AppTab.overview)
 
-            StatisticsView()
+            StatisticsView(showOverview: { selectedTab = .overview })
                 .tabItem {
                     Label("Statistikk", systemImage: "chart.pie")
                 }
+                .tag(AppTab.statistics)
         }
     }
 }

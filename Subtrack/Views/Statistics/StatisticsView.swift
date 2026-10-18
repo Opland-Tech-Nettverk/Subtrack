@@ -10,18 +10,30 @@ struct StatisticsView: View {
     /// Høyden per stolpe vokser med tekststørrelsen, så navn og beløp ikke overlapper.
     @ScaledMetric(relativeTo: .caption) private var barRowHeight: CGFloat = 44
 
+    /// Bytter til Oversikt-fanen. Settes av `MainTabView`; tom som standard for forhåndsvisninger.
+    private let showOverview: () -> Void
+
+    // Egen init, så den er synlig fra andre filer selv om de øvrige egenskapene er private.
+    init(showOverview: @escaping () -> Void = {}) {
+        self.showOverview = showOverview
+    }
+
     private var viewModel: StatisticsViewModel {
         StatisticsViewModel(subscriptions: subscriptions, targetCurrency: mainCurrency, rates: exchangeRates.rates)
     }
 
     var body: some View {
+        // Bygges én gang her og sendes videre til seksjonene, i stedet for at hver av dem
+        // leser den beregnede `self.viewModel` og lager sin egen kopi.
+        let viewModel = self.viewModel
+
         NavigationStack {
             Group {
                 if viewModel.hasData {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 32) {
-                            categorySection
-                            mostExpensiveSection
+                            categorySection(viewModel)
+                            mostExpensiveSection(viewModel)
                             if viewModel.excludedCount > 0 {
                                 Text("\(viewModel.excludedCount) abonnement uten valutakurs er ikke tatt med.")
                                     .font(.footnote)
@@ -37,15 +49,37 @@ struct StatisticsView: View {
                         systemImage: "wifi.slash",
                         description: Text("Koble til internett én gang, så regnes abonnementene om til \(mainCurrency).")
                     )
+                } else if subscriptions.isEmpty {
+                    // Statistikkfanen har ingen +-knapp, så vi viser vei til Oversikt i stedet.
+                    ContentUnavailableView {
+                        Label("Ingen abonnementer ennå", systemImage: "chart.pie")
+                    } description: {
+                        Text("Legg til abonnementer i Oversikt, så ser du her hva de koster per kategori.")
+                    } actions: {
+                        // Fremhevet knapp med stor kontrollstørrelse: uten `.large` ble den bare
+                        // ca. 28 pt høy her, mens stor kontrollstørrelse gir minst 44 pt høyde.
+                        Button("Gå til Oversikt", action: showOverview)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                    }
                 } else {
-                    EmptyStateView()
+                    // Det finnes abonnementer, men alle er pauset eller avsluttet.
+                    ContentUnavailableView {
+                        Label("Ingen aktive abonnementer", systemImage: "pause.circle")
+                    } description: {
+                        Text("Pausede og avsluttede abonnementer tas ikke med i statistikken.")
+                    } actions: {
+                        Button("Gå til Oversikt", action: showOverview)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                    }
                 }
             }
             .navigationTitle("Statistikk")
         }
     }
 
-    private var categorySection: some View {
+    private func categorySection(_ viewModel: StatisticsViewModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Kostnad per kategori")
                 .font(.headline)
@@ -110,7 +144,7 @@ struct StatisticsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var mostExpensiveSection: some View {
+    private func mostExpensiveSection(_ viewModel: StatisticsViewModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Dyreste abonnement")
                 .font(.headline)
@@ -124,12 +158,12 @@ struct StatisticsView: View {
                     }
                 }
             } else {
-                mostExpensiveChart
+                mostExpensiveChart(viewModel)
             }
         }
     }
 
-    private var mostExpensiveChart: some View {
+    private func mostExpensiveChart(_ viewModel: StatisticsViewModel) -> some View {
         Chart(viewModel.mostExpensiveSubscriptions) { subscription in
             BarMark(
                 x: .value("Per måned", subscription.monthlyCost.doubleValue),

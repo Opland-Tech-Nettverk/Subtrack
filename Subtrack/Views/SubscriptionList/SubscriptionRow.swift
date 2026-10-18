@@ -37,6 +37,9 @@ struct SubscriptionRow: View {
                 symbolName: subscription.displaySymbolName,
                 color: subscription.isActive ? subscription.displayColor : .gray
             )
+            // Bare ikonet dempes for pausede abonnement. Demping av hele raden ga sekundærteksten
+            // bare ca. 2:1 kontrast; teksten «Pauset» forteller det samme, også til VoiceOver.
+            .opacity(subscription.isActive ? 1 : 0.5)
         } title: {
             Text(subscription.name)
                 .font(.body.weight(.medium))
@@ -47,11 +50,11 @@ struct SubscriptionRow: View {
             // Delte abonnement viser brukerens del, slik at raden stemmer med totalene.
             Text(subscription.myShare.formatted(.currency(code: subscription.currencyCode)))
                 .font(.body.weight(.medium))
+                .foregroundStyle(subscription.isActive ? HierarchicalShapeStyle.primary : .secondary)
             Text(renewalText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .opacity(subscription.isActive ? 1 : 0.5)
         .accessibilityElement(children: .combine)
     }
 }

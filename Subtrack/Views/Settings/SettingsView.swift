@@ -6,6 +6,7 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKeys.glassIntensity) private var glassIntensity: Double = 0.6
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @Environment(ExchangeRateStore.self) private var exchangeRates
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         NavigationStack {
@@ -38,7 +39,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Utseende")
                 } footer: {
-                    Text("Styrer hvor gjennomsiktig og «glassaktig» kort og paneler i appen ser ut.")
+                    Text(glassFooter)
                 }
             }
             .navigationTitle("Innstillinger")
@@ -60,6 +61,14 @@ private extension SettingsView {
         }
         let date = rates.rateDate.formatted(date: .abbreviated, time: .omitted)
         return "\(explanation) Kurser fra Den europeiske sentralbanken (via Frankfurter), per \(date)."
+    }
+
+    var glassFooter: String {
+        let explanation = "Styrer hvor mye av bakgrunnen som skinner gjennom oppsummeringskortene, fra helt matt til full glasseffekt."
+        guard reduceTransparency else {
+            return "\(explanation) Med «Reduser gjennomsiktighet» slått på i iOS-innstillingene er kortene alltid matte."
+        }
+        return "\(explanation) «Reduser gjennomsiktighet» er slått på i iOS-innstillingene, så kortene vises matte uansett styrke."
     }
 }
 

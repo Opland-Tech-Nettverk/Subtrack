@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import UIKit
 
 /// Speiler `WidgetSnapshotStore.UpcomingRenewal` i app-targetet. Appen og widgeten
 /// er separate prosesser som bare deler JSON-formatet - endres feltene her, må
@@ -18,7 +19,7 @@ struct UpcomingRenewal: Codable, Identifiable {
     var id: String { "\(name)-\(renewalDate.timeIntervalSince1970)" }
 
     var color: Color {
-        colorHex.flatMap(Color.init(hex:)) ?? .accentColor
+        colorHex.flatMap(Color.palette(hex:)) ?? .accentColor
     }
 }
 
@@ -33,6 +34,37 @@ extension Color {
             red: Double((value >> 16) & 0xFF) / 255,
             green: Double((value >> 8) & 0xFF) / 255,
             blue: Double(value & 0xFF) / 255
+        )
+    }
+}
+
+// Speiler `SubscriptionAppearance.color(forHex:)` i app-targetet: oransje, grønn og turkis
+// får bare ca. 2:1 mot hvit bakgrunn og får en mørkere variant i lys modus (over 4:1).
+// Mørk modus bruker den lagrede fargen. Begrunnelsen står i appen. Endres fargene eller
+// verdiene her, må samme endring gjøres i appen.
+private extension Color {
+    static func palette(hex: String) -> Color? {
+        let digits = (hex.hasPrefix("#") ? String(hex.dropFirst()) : hex).uppercased()
+        return switch digits {
+        case "FF9F0A": Color.adaptive(light: 0xC75C00, dark: 0xFF9F0A)
+        case "30D158": Color.adaptive(light: 0x248A3D, dark: 0x30D158)
+        case "40C8E0": Color.adaptive(light: 0x008299, dark: 0x40C8E0)
+        default: Color(hex: hex)
+        }
+    }
+
+    static func adaptive(light: UInt32, dark: UInt32) -> Color {
+        Color(uiColor: UIColor { traits in
+            Color.rgbColor(traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+
+    static func rgbColor(_ value: UInt32) -> UIColor {
+        UIColor(
+            red: CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >> 8) & 0xFF) / 255,
+            blue: CGFloat(value & 0xFF) / 255,
+            alpha: 1
         )
     }
 }

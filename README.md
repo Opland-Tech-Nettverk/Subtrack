@@ -44,7 +44,10 @@ Appen er skrevet i Swift og SwiftUI, bruker bare Apples egne rammeverk og har br
 - **Hver rad** viser navn, intervall, pris og hvor lenge det er til neste trekk («I dag», «I morgen», «Om 5 dager»). Passerte datoer flyttes automatisk frem til neste fornyelse.
 - **Fire sorteringer:** neste fornyelse, pris (høyest først, omregnet til hovedvalutaen så ulike valutaer sammenlignes riktig), navn eller kategori. Ved sortering på kategori får hver kategori sin egen seksjon. Valget huskes.
 - **Søk** i navn og kategori, uten å skille på store og små bokstaver eller aksenter.
-- **Sveipehandlinger:** sveip til høyre for å pause eller gjenoppta, til venstre for å redigere eller avslutte.
+- **Trykk på en rad** for å åpne abonnementet i skjemaet.
+- **Sveipehandlinger:** sveip til høyre for å pause eller gjenoppta, til venstre for å redigere eller avslutte. Avslutt krever et trykk på knappen og skjer aldri ved et fullt sveip.
+- **Hold inne på en rad** for en meny med Rediger, Pause eller Gjenoppta og Avslutt, for dem som ikke finner eller kan bruke sveipene.
+- **Angre etter avslutt:** et banner nederst, for eksempel «Netflix» er avsluttet, har knappen «Angre» og blir stående i rundt 5 sekunder (10 sekunder med VoiceOver).
 - **Kategorier** (Streaming, Musikk, Programvare, Trening, Nettsky og Annet) med eget standardikon, og mulighet til å velge **eget ikon og egen farge** per abonnement.
 - **Haptisk tilbakemelding** når du lagrer, pauser, avslutter, gjenopptar eller sletter.
 
@@ -54,6 +57,7 @@ Appen er skrevet i Swift og SwiftUI, bruker bare Apples egne rammeverk og har br
 - **Pris skrives slik folk faktisk skriver den:** «149,90», «1 000», «1.234,50» og «1,234.50» godtas. Tvetydige verdier som «1,2,3» avvises med en tydelig feilmelding i stedet for at appen gjetter.
 - **Notat** og **avslutningslenke** per abonnement. Lenken kan skrives uten `https://` (for eksempel `netflix.com/cancel`) og kan åpnes direkte fra skjemaet.
 - **Ingen endringer går tapt ved et uhell:** har du endret noe, må du bekrefte før skjemaet forkastes, og det kan ikke sveipes bort.
+- **«Avslutt abonnement»** nederst i skjemaet for et eksisterende abonnement flytter det til arkivet etter en bekreftelse, med samme angre-banner som i listen. Andre ulagrede endringer i skjemaet forkastes da.
 
 ### Valutaer og omregning
 
@@ -88,16 +92,17 @@ Slå på «Gratis prøveperiode», så blir datoen du velger dagen prøveperiode
 
 ### Pause, arkiv og besparelser
 
-- **Pause** et abonnement som ikke koster noe akkurat nå. Det vises nedtonet som «Pauset» og holdes utenfor totaler, statistikk, varsler og widget.
+- **Pause** et abonnement som ikke koster noe akkurat nå. Det vises som «Pauset» med nedtonet ikon og beløp og holdes utenfor totaler, statistikk, varsler og widget.
 - **Avslutt** flytter abonnementet til arkivet i stedet for å slette det, så det kan angres.
 - **Arkivet** viser hvor mye hvert abonnement har **spart** siden det ble avsluttet, en samlet sum «Spart så langt» i hovedvalutaen og hva du sparer **per år fremover**. Besparelsen øker jevnt dag for dag i stedet for å hoppe ved hver fornyelse. Et abonnement som allerede var pauset da det ble avsluttet, regnes ikke som en besparelse.
-- Fra arkivet kan du **gjenoppta** et abonnement eller **slette det for godt** (med bekreftelse).
+- Fra arkivet kan du **gjenoppta** et abonnement eller **slette det for godt** (med bekreftelse), ved å sveipe eller holde inne på raden. Et fullt sveip åpner ikke slettedialogen.
 
 ### Statistikk
 
 - **Kostnad per kategori** som smultringdiagram, med en liste under som viser eksakte beløp per måned og fungerer som forklaring.
 - **De fem dyreste abonnementene** som liggende stolpediagram med beløp per måned.
 - Alt regnes om til hovedvalutaen og bruker din andel av delte abonnement.
+- **Tomtilstander:** uten abonnement vises «Ingen abonnementer ennå», og er alle pauset eller avsluttet, vises «Ingen aktive abonnementer», siden de ikke tas med i statistikken. Begge har knappen «Gå til Oversikt».
 
 ### Widget «Neste trekk»
 
@@ -112,14 +117,16 @@ Abonnementene synkroniseres mellom iPhone og iPad via CloudKit i din private iCl
 ### Innstillinger og utseende
 
 - **Hovedvaluta** for totaler og statistikk, med dato for kursene som brukes.
-- **Glass-styrke:** en glidebryter som styrer hvor gjennomsiktige og «glassaktige» kort og paneler er, fra helt matt til full glasseffekt. På iOS 26 og nyere brukes Liquid Glass, på eldre versjoner et vanlig SwiftUI-materiale.
+- **Glass-styrke:** en glidebryter som styrer hvor mye av bakgrunnen som skinner gjennom oppsummeringskortene, fra helt matt til full glasseffekt. På iOS 26 og nyere brukes Liquid Glass, på eldre versjoner et vanlig SwiftUI-materiale.
 - På iPad begrenses bredden på listene, så radene ikke strekkes over hele skjermen.
 
 ### Tilgjengelighet
 
 - **Dynamic Type:** ved de største tekststørrelsene stables rader, sammendrag og beløp under hverandre i stedet for å kuttes. Stolpediagrammet byttes ut med en enkel liste, ikonene vokser med teksten (med et tak), og widgeten viser færre rader.
-- **VoiceOver:** hver rad leses som ett element. Dekorative ikoner er skjult, sektordiagrammet har en tekstlig liste som alternativ, stolpene har navn og beløp, og ikon- og fargevelgeren har navn på hvert valg og sier hvilket som er valgt. Glidebryteren for glass-styrke har etikett og verdi i prosent.
-- **Reduser gjennomsiktighet:** er dette slått på i iOS, blir flatene matte uansett hva glass-styrken står på.
+- **VoiceOver:** hver rad leses som én knapp med et hint om at den åpner abonnementet for redigering. Avslutter du et abonnement, leses det opp, og angre-banneret blir stående lenger. Dekorative ikoner er skjult, sektordiagrammet har en tekstlig liste som alternativ, stolpene har navn og beløp, og ikon- og fargevelgeren har navn på hvert valg og sier hvilket som er valgt. Glidebryteren for glass-styrke har etikett og verdi i prosent.
+- **Reduser gjennomsiktighet:** er dette slått på i iOS, blir oppsummeringskortene matte uansett hva glass-styrken står på.
+- **Reduser bevegelse:** angre-banneret tones bare inn og ut i stedet for å gli opp.
+- **Kontrast:** grønnfargen for sparte beløp er mørkere i lys modus. Oransje, grønn og turkis i fargepaletten får også en mørkere variant i lys modus, både i appen og i widgeten, så den fargede sirkelen skiller seg fra den hvite bakgrunnen (over 4:1 i stedet for ca. 2:1). I mørk modus brukes den lagrede fargen, som står godt mot den mørke bakgrunnen. Det hvite ikonet i sirkelen er dekorativt, så det er navnet som bærer betydningen. Den lagrede fargen endres ikke. Pausede rader demper bare ikonet og toner ned beløpet, så teksten forblir lesbar.
 - Trykkflatene i ikon- og fargevelgeren er minst 44 × 44 punkter.
 
 ### Robusthet
@@ -271,7 +278,7 @@ SubtrackUITests/                         UI-tester (XCTest)
 
 - **Enhetstester med Swift Testing** dekker logikken grundig: kostnader og deling, fornyelsesdatoer (blant annet at den 31. kommer tilbake etter februar), normalisering av datoer på tvers av tidssoner og sommertid, valg av varsler innenfor budsjettet, reservevarsler og at de ikke dobles, besparelser, sortering og søk, valutaomregning, tolking av priser og lenker, statistikk, widget-data (inkludert at JSON-formatet stemmer med det widgeten leser) og lagring av tekstkoder og eldre felt.
 - Testene er laget for å gi samme resultat uansett hvor og når de kjøres, og det meste av datologikken testes med **faste kalendere og tidssoner** (blant annet UTC, Europe/Oslo og Europe/London). Flere av dem er parameteriserte med en rekke inndata.
-- **UI-tester med XCTest** går gjennom hovedflytene slik en bruker opplever dem: tom start, legge til et abonnement og se det i sammendraget, validering i skjemaet og bekreftelse før endringer forkastes, avslutte og gjenoppta, søk og statistikk.
+- **UI-tester med XCTest** går gjennom hovedflytene slik en bruker opplever dem: tom start, legge til et abonnement og se det i sammendraget, validering i skjemaet og bekreftelse før endringer forkastes, avslutte og gjenoppta, avslutte fra menyen og angre, søk, statistikk og at tom statistikk viser vei til Oversikt.
 - UI-testene starter appen med `-UITesting`. Da brukes en **tom database i minnet uten iCloud**, og varseldialogen hoppes over. Varsler, widget og datoryddingen røres ikke, så testene aldri rører ekte data.
 
 ## Personvern

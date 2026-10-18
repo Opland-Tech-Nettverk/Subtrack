@@ -69,14 +69,28 @@ struct ArchivedSubscriptionsView: View {
                             Button("Gjenoppta") { restore(subscription) }
                                 .tint(.green)
                         }
-                        .swipeActions(edge: .trailing) {
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button("Slett", role: .destructive) {
                                 subscriptionPendingDeletion = subscription
                             }
                         }
+                        // Samme handlinger som sveipene, for dem som ikke oppdager eller kan sveipe.
+                        .contextMenu {
+                            Button {
+                                restore(subscription)
+                            } label: {
+                                Label("Gjenoppta", systemImage: "arrow.uturn.backward")
+                            }
+                            Button(role: .destructive) {
+                                // Går via bekreftelsen, akkurat som sveipet.
+                                subscriptionPendingDeletion = subscription
+                            } label: {
+                                Label("Slett for godt", systemImage: "trash")
+                            }
+                        }
                 }
             } footer: {
-                Text("Sveip til høyre for å gjenoppta, eller til venstre for å slette for godt.")
+                Text("Sveip, eller hold inne på et abonnement, for å gjenoppta eller slette det for godt.")
             }
         }
         .readableContentWidth()
@@ -124,7 +138,7 @@ private struct TotalSavingsView: View {
                 .foregroundStyle(.secondary)
             Text(total.amount.formatted(.currency(code: mainCurrency)))
                 .font(.title.bold())
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.savings)
                 .contentTransition(.numericText())
             Text("\(yearlySavings.amount.formatted(.currency(code: mainCurrency))) per år fremover")
                 .font(.caption)
@@ -161,7 +175,7 @@ private struct ArchivedRow: View {
         } detail: {
             Text(subscription.savedSinceCancellation().formatted(.currency(code: subscription.currencyCode)))
                 .font(.body.weight(.medium))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.savings)
             Text("spart")
                 .font(.caption)
                 .foregroundStyle(.secondary)
