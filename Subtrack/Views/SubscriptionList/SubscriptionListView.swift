@@ -9,6 +9,7 @@ struct SubscriptionListView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @AppStorage(AppSettingsKeys.sortOrder) private var sortOrder: SubscriptionSortOrder = .renewal
     @Query(sort: \Subscription.nextRenewalDate) private var subscriptions: [Subscription]
@@ -16,6 +17,11 @@ struct SubscriptionListView: View {
     @State private var editingSubscription: Subscription?
     @State private var isAddingSubscription = false
     @State private var isShowingSettings = false
+    /// Utkastet fra `AddSubscriptionRouter` som vises i skjemaet nå, f.eks. fra snarveien.
+    @State private var presentedDraft: SubscriptionDraft?
+    /// Om oversikten er fanen som vises. Et utkast vises ikke fra en skjult fane; da venter
+    /// det til fanen er byttet.
+    @State private var isOnScreen = false
     @State private var searchText = ""
     // Økes for å utløse haptisk tilbakemelding.
     @State private var pauseFeedbackTrigger = 0
@@ -47,6 +53,16 @@ struct SubscriptionListView: View {
     /// Lenge nok til å rekke å angre. Med VoiceOver tar det lengre tid å finne knappen.
     private var archiveNoticeDuration: Duration {
         voiceOverEnabled ? .seconds(10) : .seconds(5)
+    }
+
+    /// Felles for hele appen. Lesingen av køen i `body` spores av Observation, så visningen
+    /// oppdateres når snarveien legger til et utkast.
+    private var router: AddSubscriptionRouter { .shared }
+
+    /// Et ark herfra er åpent. Et nytt utkast venter da til arket er lukket, så det brukeren
+    /// holder på med, aldri blir erstattet.
+    private var isShowingSheet: Bool {
+        isAddingSubscription || editingSubscription != nil || isShowingSettings || presentedDraft != nil
     }
 
     private var isSearching: Bool {
@@ -133,21 +149,50 @@ struct SubscriptionListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $isAddingSubscription) {
+            // Hvert ark ser etter neste utkast når det er helt lukket, så utkast som kom
+            // mens det var åpent, vises etterpå, ett om gangen.
+            .sheet(isPresented: $isAddingSubscription, onDismiss: presentNextDraft) {
                 SubscriptionFormView()
             }
-            .sheet(item: $editingSubscription) { subscription in
+            .sheet(item: $editingSubscription, onDismiss: presentNextDraft) { subscription in
                 // Avslutt fra skjemaet går gjennom listen, så det får samme angre-banner,
                 // VoiceOver-beskjed og haptikk som fra sveip og hurtigmeny. Banneret ligger
                 // på listen og er synlig når arket har lukket seg.
                 SubscriptionFormView(subscriptionToEdit: subscription, onArchive: { archive($0) })
             }
-            .sheet(isPresented: $isShowingSettings) {
+            .sheet(isPresented: $isShowingSettings, onDismiss: presentNextDraft) {
                 SettingsView()
             }
             .sensoryFeedback(.impact(weight: .light), trigger: pauseFeedbackTrigger)
             .sensoryFeedback(.impact(weight: .medium), trigger: archiveFeedbackTrigger)
         }
+        // På navigasjonsstakken og ikke på listen, så utkastet også vises når arkivet er åpnet.
+        .sheet(item: $presentedDraft, onDismiss: presentNextDraft) { draft in
+            SubscriptionFormView(draft: draft)
+        }
+        // Køen går fra tom til ikke tom. Flere utkast etter hverandre vises via onDismiss over.
+        .onChange(of: router.hasPendingDrafts) {
+            presentNextDraft()
+        }
+        // Et utkast fra snarveien kommer ofte mens appen åpnes, før vinduet er aktivt.
+        .onChange(of: scenePhase) {
+            presentNextDraft()
+        }
+        // Bytte av fane gir onAppear og onDisappear her, men ikke det å åpne arkivet.
+        .onAppear {
+            isOnScreen = true
+            presentNextDraft()
+        }
+        .onDisappear {
+            isOnScreen = false
+        }
+    }
+
+    /// Viser det eldste ventende utkastet, men bare når oversikten vises i et aktivt vindu og
+    /// ingen ark er åpne. Med flere vinduer på iPad tar da ikke et vindu i bakgrunnen utkastet.
+    private func presentNextDraft() {
+        guard scenePhase == .active, isOnScreen, !isShowingSheet, let draft = router.dequeue() else { return }
+        presentedDraft = draft
     }
 
     private var list: some View {

@@ -119,6 +119,25 @@ final class SubtrackUITests: XCTestCase {
     }
 
     @MainActor
+    func testShortcutDraftOpensPrefilledForm() {
+        // Starter appen på nytt som om snarveien «Legg til abonnement» ble kjørt med navnet
+        // "netflix". Navnet finnes i katalogen, så skjemaet får katalognavnet og prisen derfra.
+        app.terminate()
+        app.launchArguments += ["-UITestingShortcutDraft", "netflix"]
+        app.launch()
+
+        let nameField = app.textFields["Navn"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5), "Skjemaet skulle vært åpnet med utkastet fra snarveien")
+        XCTAssertEqual(nameField.value as? String, "Netflix")
+        // Prisen fra katalogens første plan (Standard). Et tomt felt ville vist plassholderen
+        // "Pris" som verdi, så en lik sammenligning fanger også det.
+        XCTAssertEqual(app.textFields["Pris"].value as? String, "149")
+
+        app.buttons["Lagre"].tap()
+        XCTAssertTrue(row(named: "Netflix").waitForExistence(timeout: 5), "Netflix skulle vært i listen etter lagring")
+    }
+
+    @MainActor
     func testArchivingAndRestoringASubscription() {
         addSubscription(name: "Netflix", price: "149")
 
