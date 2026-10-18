@@ -178,6 +178,15 @@ struct StatisticsView: View {
             .accessibilityLabel(subscription.name)
             .accessibilityValue(subscription.monthlyCost.formatted(.currency(code: mainCurrency)))
         }
+        // Standardaksen gir små, mørkegrå navn som nesten forsvinner mot svart i mørk modus.
+        // Bare etiketter, som standardaksen for navn, men i samme stil som beløpene.
+        .chartYAxis {
+            AxisMarks { _ in
+                AxisValueLabel()
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            }
+        }
         .frame(height: CGFloat(viewModel.mostExpensiveSubscriptions.count) * barRowHeight + 20)
     }
 }
@@ -193,7 +202,7 @@ extension SubscriptionCategory {
         case .nettsky: .cyan
         case .nyheter: .brown
         case .boker: .green
-        case .spill: .yellow
+        case .spill: .chartYellow
         case .ai: .indigo
         case .annet: .gray
         }

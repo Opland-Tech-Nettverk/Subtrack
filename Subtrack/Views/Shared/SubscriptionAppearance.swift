@@ -68,6 +68,12 @@ extension Color {
     /// lesbar (ca. 8:1 mot mørk bakgrunn) og beholdes.
     static let savings = Color.adaptive(light: 0x1B7D33, dark: 0x30D158)
 
+    /// Gul for diagramflater (kategorien spill). Systemgul (#FFCC00) gir bare ca. 1,5:1 mot
+    /// hvit, så i lys modus brukes en mørkere okergul (#AA7F00, ca. 3,7:1 mot hvit og 3,3:1
+    /// mot gruppert bakgrunn) som holder kravet på 3:1 for grafikk. I mørk modus brukes
+    /// systemgul (#FFD60A, ca. 12:1 mot mørk bakgrunn).
+    static let chartYellow = Color.adaptive(light: 0xAA7F00, dark: 0xFFD60A)
+
     /// Farge som bytter mellom to RGB-verdier etter lys/mørk modus.
     /// `nonisolated` så closuren ikke arver hovedaktøren; UIKit kan løse fargen hvor som helst.
     nonisolated fileprivate static func adaptive(light: UInt32, dark: UInt32) -> Color {
