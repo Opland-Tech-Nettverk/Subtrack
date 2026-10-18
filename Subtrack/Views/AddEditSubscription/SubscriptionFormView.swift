@@ -171,10 +171,24 @@ struct SubscriptionFormView: View {
         return ServiceCatalog.bundled.search(query, limit: 4)
     }
 
+    /// Planen i `appliedService` som stemmer med pris, valuta og intervall i skjemaet, eller `nil`
+    /// når brukeren har endret noe av det selv. Har flere planer de samme verdiene, vinner den valgte.
+    /// Styrer både planvelgeren og prisnotatet, så ingen av dem viser en pris som ikke står i skjemaet.
+    private var matchingPlan: CatalogPlan? {
+        guard let plans = appliedService?.plans else { return nil }
+        let matches = plans.filter {
+            priceText == priceFieldText($0.price) && $0.currencyCode == currencyCode && $0.interval == billingInterval
+        }
+        return matches.first { $0.id == selectedPlanID } ?? matches.first
+    }
+
     /// Valgt plan i planvelgeren. Et nytt valg fyller inn planens pris, valuta og intervall.
+    /// Viser planen som stemmer med skjemaet, så den riktige er valgt også når brukeren selv
+    /// skriver inn prisen til en annen plan. Stemmer ingen, er det "Egen pris" (tom ID), som
+    /// ikke endrer noe om den velges.
     private var planSelection: Binding<String> {
         Binding(
-            get: { selectedPlanID ?? appliedService?.plans.first?.id ?? "" },
+            get: { matchingPlan?.id ?? "" },
             set: { id in
                 guard let plan = appliedService?.plans.first(where: { $0.id == id }) else { return }
                 selectedPlanID = plan.id
@@ -187,10 +201,9 @@ struct SubscriptionFormView: View {
     }
 
     /// Minner om at katalogprisen kan være utdatert, f.eks. "Vanlig pris per okt. 2026. Sjekk at den stemmer."
-    /// Vises bare mens prisfeltet har prisen til planen som er valgt.
+    /// Vises bare mens skjemaet har prisen til en av planene, se `matchingPlan`.
     private var catalogPriceNote: String? {
-        guard let plan = appliedService?.plans.first(where: { $0.id == selectedPlanID }),
-              priceText == priceFieldText(plan.price),
+        guard matchingPlan != nil,
               let checkedDate = ServiceCatalog.bundled.pricesCheckedDateValue else { return nil }
         // Fast norsk format, så måneden står på samme språk som resten av setningen.
         let month = checkedDate.formatted(.dateTime.month(.abbreviated).year().locale(Locale(identifier: "nb_NO")))
@@ -206,10 +219,16 @@ struct SubscriptionFormView: View {
                     CatalogSuggestionsView(services: catalogSuggestions) { service in
                         applyCatalogService(service)
                     }
+                    // Står fast, så skjemaet ikke hopper mens prisen skrives. Stemmer ingen plan med
+                    // skjemaet, er "Egen pris" valgt i stedet for en plan med en annen pris enn feltet.
+                    // Valget finnes bare da, så det ikke kan velges når en plan stemmer.
                     if let plans = appliedService?.plans, plans.count > 1 {
                         Picker("Plan", selection: planSelection) {
                             ForEach(plans) { plan in
                                 Text("\(plan.label) – \(CatalogPriceText.short(plan))").tag(plan.id)
+                            }
+                            if matchingPlan == nil {
+                                Text("Egen pris").tag("")
                             }
                         }
                     }
@@ -445,10 +464,10 @@ struct SubscriptionFormView: View {
         appliedService = draft.catalogServiceID.flatMap { ServiceCatalog.bundled.service(id: $0) }
         // Planen med utkastets pris er valgt; ellers den første, som utkastet bruker som standard.
         let plans = appliedService?.plans ?? []
-        let matchingPlan = plans.first {
+        let draftPlan = plans.first {
             $0.price == draft.price && $0.currencyCode == draft.currencyCode && $0.interval == draft.interval
         }
-        selectedPlanID = (matchingPlan ?? plans.first)?.id
+        selectedPlanID = (draftPlan ?? plans.first)?.id
         if appliedService != nil {
             catalogFill = CatalogFill(name: name, priceText: priceText, cancelLinkText: cancelLinkText)
         }

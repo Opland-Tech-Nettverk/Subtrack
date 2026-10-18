@@ -202,14 +202,17 @@ struct ServiceCatalog: Decodable, Equatable {
     }
 
     /// Små bokstaver uten diakritiske tegn og uten mellomrom i endene. Brukes av søket.
-    fileprivate static func searchKey(_ text: String) -> String {
+    /// `nonisolated` fordi den er ren beregning og brukes av `IndexedService`, som ikke er bundet til hovedaktøren.
+    nonisolated fileprivate static func searchKey(_ text: String) -> String {
         text
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
     }
 
-    private struct IndexedService: Equatable {
+    // nonisolated fordi `services.map(IndexedService.init)` og `aliases.map(ServiceCatalog.searchKey)`
+    // blir implisitte closures uten aktør, som ellers ikke kan kalle kode bundet til MainActor.
+    nonisolated private struct IndexedService: Equatable {
         let searchName: String
         let nameWords: [String]
         let searchAliases: [String]
@@ -241,7 +244,8 @@ struct ServiceCatalog: Decodable, Equatable {
 }
 
 /// Rensing av mottakertekst fra kontoutskrifter og kvitteringer. Brukes av `match` og senere av CSV-importen.
-enum MerchantText {
+/// `nonisolated` fordi den er ren beregning og kalles fra `IndexedService`, som ikke er bundet til hovedaktøren.
+nonisolated enum MerchantText {
     /// Små bokstaver, uten diakritiske tegn, uten kortprefiks ("*1234 14.08 NOK 364.80 ", "Visa 100591 ",
     /// "Varekjøp ", "Dato 12.09 kl. 10.47", "Kurs: 1.0000", "Valutakurs: 9,8431", "PAYPAL *", "Vipps*"),
     /// tegnsetting erstattet med mellomrom, og mellomrom slått sammen.

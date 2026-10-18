@@ -193,7 +193,7 @@ extension SubscriptionCategory {
         case .nettsky: .cyan
         case .nyheter: .brown
         case .boker: .green
-        case .spill: .pink
+        case .spill: .yellow
         case .ai: .indigo
         case .annet: .gray
         }

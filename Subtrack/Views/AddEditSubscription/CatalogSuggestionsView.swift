@@ -56,13 +56,16 @@ private struct CatalogSuggestionRow: View {
                     symbolName: service.symbolName,
                     color: SubscriptionAppearance.color(forHex: service.colorHex) ?? .accentColor
                 )
+                // Ellers farger knappen teksten med aksentfargen, med svak kontrast.
+                // `Color.primary` og `Color.secondary` og ikke `.primary` og `.secondary`,
+                // som er hierarkiske og kan arve knappens farge.
                 VStack(alignment: .leading, spacing: 2) {
                     Text(service.name)
                         .font(.body.weight(.medium))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.primary)
                     Text(detailText)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -75,7 +78,8 @@ private struct CatalogSuggestionRow: View {
 }
 
 /// Tekst for prisen på en plan i katalogen.
-enum CatalogPriceText {
+/// `nonisolated` fordi den er ren beregning og kalles fra closures som ikke er bundet til hovedtråden.
+nonisolated enum CatalogPriceText {
     /// Kort form til visning, f.eks. "149,00 kr/mnd".
     static func short(_ plan: CatalogPlan) -> String {
         "\(plan.price.formatted(.currency(code: plan.currencyCode)))/\(shortUnit(plan.interval))"
