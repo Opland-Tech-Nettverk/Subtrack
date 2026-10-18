@@ -191,6 +191,14 @@ struct StatisticsView: View {
                     .foregroundStyle(Color.secondary)
             }
         }
+        // Samme som standardaksen for beløpene, men med eksplisitt anker av samme grunn.
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel(anchor: .top)
+            }
+        }
         .frame(height: CGFloat(viewModel.mostExpensiveSubscriptions.count) * barRowHeight + 20)
         // Swift Charts oppdaterer ikke farge på akseetikettene når man bytter mellom lys og
         // mørk modus mens appen kjører, så navnene ble nesten usynlige. Ny id bygger diagrammet på nytt.
