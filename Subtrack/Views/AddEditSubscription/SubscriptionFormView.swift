@@ -15,6 +15,9 @@ struct SubscriptionFormView: View {
     /// for selve avslutningen (dato, angre-banner, haptikk og VoiceOver-kunngjøring), og
     /// skjemaet bare lukkes. `nil` betyr at skjemaet avslutter abonnementet selv.
     var onArchive: ((Subscription) -> Void)? = nil
+    /// Et delvis utfylt abonnement, f.eks. fra tjenestekatalogen, som fyller skjemaet ved lasting.
+    /// Brukes bare for nye abonnementer; ved redigering ignoreres det.
+    var draft: SubscriptionDraft? = nil
 
     @State private var name = ""
     @State private var priceText = ""
@@ -42,6 +45,25 @@ struct SubscriptionFormView: View {
     /// Settes én gang ved lasting, så seksjonen ikke forsvinner under
     /// lukkeanimasjonen når abonnementet nettopp er avsluttet.
     @State private var canArchive = false
+    /// Katalogtjenesten skjemaet sist ble fylt ut fra. Gir planvalg og notatet om prisen.
+    @State private var appliedService: CatalogService?
+    /// Planen som er valgt blant `appliedService` sine planer.
+    @State private var selectedPlanID: String?
+    /// Det katalogen sist fylte inn. Beholdes også når navnet endres og `appliedService`
+    /// nullstilles, så et nytt forslag kan tømme pris og lenke som ellers ville hengt igjen.
+    @State private var catalogFill: CatalogFill?
+    @FocusState private var focusedField: Field?
+
+    private enum Field {
+        case name, price
+    }
+
+    /// Feltene slik katalogen fylte dem inn.
+    private struct CatalogFill: Equatable {
+        var name: String
+        var priceText: String
+        var cancelLinkText: String
+    }
 
     /// Alle feltene i skjemaet, slik at vi kan se om brukeren har endret noe.
     private struct Draft: Equatable {
@@ -128,18 +150,101 @@ struct SubscriptionFormView: View {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && (price ?? 0) > 0 && !showsCancelLinkError
     }
 
+    /// Om navnet fortsatt er det katalogen fylte inn for tjenesten som er valgt, uten hensyn til
+    /// store/små bokstaver og diakritiske tegn. Navnet kan avvike fra tjenestens, f.eks.
+    /// "Netflix Premium" fra et utkast.
+    private var nameMatchesCatalogFill: Bool {
+        guard appliedService != nil, let catalogFill else { return false }
+        let query = name.trimmingCharacters(in: .whitespaces)
+        let filledName = catalogFill.name.trimmingCharacters(in: .whitespaces)
+        return filledName.compare(query, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+    }
+
+    /// Treff i katalogen for navnet som skrives, bare for nye abonnementer. Skjules når skjemaet
+    /// nettopp er fylt ut fra katalogen med dette navnet, så listen ikke står igjen og dytter
+    /// resten av skjemaet nedover. Den som skriver hele navnet selv, f.eks. "Netflix", får
+    /// fortsatt forslaget.
+    private var catalogSuggestions: [CatalogService] {
+        guard !isEditing, !nameMatchesCatalogFill else { return [] }
+        let query = name.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return [] }
+        return ServiceCatalog.bundled.search(query, limit: 4)
+    }
+
+    /// Planen i `appliedService` som stemmer med pris, valuta og intervall i skjemaet, eller `nil`
+    /// når brukeren har endret noe av det selv. Har flere planer de samme verdiene, vinner den valgte.
+    /// Styrer både planvelgeren og prisnotatet, så ingen av dem viser en pris som ikke står i skjemaet.
+    private var matchingPlan: CatalogPlan? {
+        guard let plans = appliedService?.plans else { return nil }
+        let matches = plans.filter {
+            priceText == priceFieldText($0.price) && $0.currencyCode == currencyCode && $0.interval == billingInterval
+        }
+        return matches.first { $0.id == selectedPlanID } ?? matches.first
+    }
+
+    /// Valgt plan i planvelgeren. Et nytt valg fyller inn planens pris, valuta og intervall.
+    /// Viser planen som stemmer med skjemaet, så den riktige er valgt også når brukeren selv
+    /// skriver inn prisen til en annen plan. Stemmer ingen, er det "Egen pris" (tom ID), som
+    /// ikke endrer noe om den velges.
+    private var planSelection: Binding<String> {
+        Binding(
+            get: { matchingPlan?.id ?? "" },
+            set: { id in
+                guard let plan = appliedService?.plans.first(where: { $0.id == id }) else { return }
+                selectedPlanID = plan.id
+                priceText = priceFieldText(plan.price)
+                currencyCode = plan.currencyCode
+                billingInterval = plan.interval
+                catalogFill?.priceText = priceText
+            }
+        )
+    }
+
+    /// Minner om at katalogprisen kan være utdatert, f.eks. "Vanlig pris per okt. 2026. Sjekk at den stemmer."
+    /// Vises bare mens skjemaet har prisen til en av planene, se `matchingPlan`.
+    private var catalogPriceNote: String? {
+        guard matchingPlan != nil,
+              let checkedDate = ServiceCatalog.bundled.pricesCheckedDateValue else { return nil }
+        // Fast norsk format, så måneden står på samme språk som resten av setningen.
+        let month = checkedDate.formatted(.dateTime.month(.abbreviated).year().locale(Locale(identifier: "nb_NO")))
+        return "Vanlig pris per \(month). Sjekk at den stemmer."
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     TextField("Navn", text: $name)
+                        .focused($focusedField, equals: .name)
+                    CatalogSuggestionsView(services: catalogSuggestions) { service in
+                        applyCatalogService(service)
+                    }
+                    // Står fast, så skjemaet ikke hopper mens prisen skrives. Stemmer ingen plan med
+                    // skjemaet, er "Egen pris" valgt i stedet for en plan med en annen pris enn feltet.
+                    // Valget finnes bare da, så det ikke kan velges når en plan stemmer.
+                    if let plans = appliedService?.plans, plans.count > 1 {
+                        Picker("Plan", selection: planSelection) {
+                            ForEach(plans) { plan in
+                                Text("\(plan.label) – \(CatalogPriceText.short(plan))").tag(plan.id)
+                            }
+                            if matchingPlan == nil {
+                                Text("Egen pris").tag("")
+                            }
+                        }
+                    }
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Pris", text: $priceText)
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .price)
                         if showsPriceError {
                             Text("Skriv inn en gyldig pris, f.eks. 149,90")
                                 .font(.footnote)
                                 .foregroundStyle(.red)
+                        }
+                        if let catalogPriceNote {
+                            Text(catalogPriceNote)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     Picker("Valuta", selection: $currencyCode) {
@@ -292,6 +397,14 @@ struct SubscriptionFormView: View {
                 }
             }
             .onAppear(perform: loadExistingValues)
+            // Endres navnet katalogen fylte inn, gjelder ikke planene og prisnotatet lenger.
+            // Feltene beholder det som står i dem.
+            .onChange(of: name) {
+                if appliedService != nil && !nameMatchesCatalogFill {
+                    appliedService = nil
+                    selectedPlanID = nil
+                }
+            }
             // Hindrer at et utfylt skjema forsvinner ved et utilsiktet sveip nedover.
             .interactiveDismissDisabled(hasUnsavedChanges)
             .sensoryFeedback(.success, trigger: saveFeedbackTrigger)
@@ -305,7 +418,7 @@ struct SubscriptionFormView: View {
         guard initialSnapshot == nil else { return }
         if let subscription = subscriptionToEdit {
             name = subscription.name
-            priceText = subscription.price.formatted(.number.grouping(.never))
+            priceText = priceFieldText(subscription.price)
             currencyCode = subscription.currencyCode
             billingInterval = subscription.interval
             nextRenewalDate = subscription.nextRenewalDate
@@ -323,6 +436,56 @@ struct SubscriptionFormView: View {
             currencyCode = mainCurrency
         }
         initialSnapshot = currentSnapshot
+        // Utkastet fylles inn etter at sammenligningsgrunnlaget er tatt, så et utfylt skjema
+        // regnes som endret, og Avbryt spør før det brukeren delte eller importerte, forkastes.
+        if subscriptionToEdit == nil, let draft {
+            apply(draft)
+        }
+    }
+
+    /// Prisen slik prisfeltet viser den, f.eks. "149,9", uten tusenskille.
+    private func priceFieldText(_ price: Decimal) -> String {
+        price.formatted(.number.grouping(.never))
+    }
+
+    /// Fyller inn feltene utkastet har verdi for. Felt uten verdi beholder det som står der.
+    private func apply(_ draft: SubscriptionDraft) {
+        if let value = draft.name { name = value }
+        if let value = draft.price { priceText = priceFieldText(value) }
+        if let value = draft.currencyCode { currencyCode = value }
+        if let value = draft.interval { billingInterval = value }
+        if let value = draft.kind { category = value }
+        if let value = draft.nextRenewalDate { nextRenewalDate = value }
+        if let value = draft.symbolName { symbolName = value }
+        if let value = draft.colorHex { colorHex = value }
+        if let value = draft.cancelURLString { cancelLinkText = value }
+        if let value = draft.note { note = value }
+
+        appliedService = draft.catalogServiceID.flatMap { ServiceCatalog.bundled.service(id: $0) }
+        // Planen med utkastets pris er valgt; ellers den første, som utkastet bruker som standard.
+        let plans = appliedService?.plans ?? []
+        let draftPlan = plans.first {
+            $0.price == draft.price && $0.currencyCode == draft.currencyCode && $0.interval == draft.interval
+        }
+        selectedPlanID = (draftPlan ?? plans.first)?.id
+        if appliedService != nil {
+            catalogFill = CatalogFill(name: name, priceText: priceText, cancelLinkText: cancelLinkText)
+        }
+    }
+
+    /// Fyller ut skjemaet fra et forslag i katalogen.
+    private func applyCatalogService(_ service: CatalogService) {
+        // Pris og lenke som katalogen fylte inn sist, tømmes når den nye tjenesten ikke har
+        // noen, så ingenting henger igjen fra feil tjeneste. Har brukeren selv endret feltet
+        // siden, beholdes det.
+        if let previous = catalogFill {
+            if service.plans.isEmpty && priceText == previous.priceText { priceText = "" }
+            if service.cancelURL == nil && cancelLinkText == previous.cancelLinkText { cancelLinkText = "" }
+        }
+        apply(service.draft())
+        // Mangler prisen, går tastaturet rett til prisfeltet. Ellers lukkes det, så hele
+        // det utfylte skjemaet synes.
+        focusedField = priceText.isEmpty ? .price : nil
     }
 
     private func save() {
@@ -515,6 +678,11 @@ private struct SelectableCircle<Content: View>: View {
 
 #Preview("Nytt abonnement") {
     SubscriptionFormView()
+        .modelContainer(for: Subscription.self, inMemory: true)
+}
+
+#Preview("Fra katalogen") {
+    SubscriptionFormView(draft: ServiceCatalog.bundled.service(id: "netflix")?.draft())
         .modelContainer(for: Subscription.self, inMemory: true)
 }
 

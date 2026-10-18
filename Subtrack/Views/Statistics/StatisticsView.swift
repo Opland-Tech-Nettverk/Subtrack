@@ -7,6 +7,7 @@ struct StatisticsView: View {
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @Environment(ExchangeRateStore.self) private var exchangeRates
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.colorScheme) private var colorScheme
     /// Høyden per stolpe vokser med tekststørrelsen, så navn og beløp ikke overlapper.
     @ScaledMetric(relativeTo: .caption) private var barRowHeight: CGFloat = 44
 
@@ -178,7 +179,19 @@ struct StatisticsView: View {
             .accessibilityLabel(subscription.name)
             .accessibilityValue(subscription.monthlyCost.formatted(.currency(code: mainCurrency)))
         }
+        // Standardaksen gir små, mørkegrå navn som nesten forsvinner mot svart i mørk modus.
+        // Bare etiketter, som standardaksen for navn, men i samme stil som beløpene.
+        .chartYAxis {
+            AxisMarks { _ in
+                AxisValueLabel()
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            }
+        }
         .frame(height: CGFloat(viewModel.mostExpensiveSubscriptions.count) * barRowHeight + 20)
+        // Swift Charts oppdaterer ikke farge på akseetikettene når man bytter mellom lys og
+        // mørk modus mens appen kjører, så navnene ble nesten usynlige. Ny id bygger diagrammet på nytt.
+        .id(colorScheme)
     }
 }
 
@@ -191,6 +204,10 @@ extension SubscriptionCategory {
         case .programvare: .blue
         case .trening: .orange
         case .nettsky: .cyan
+        case .nyheter: .brown
+        case .boker: .green
+        case .spill: .chartYellow
+        case .ai: .indigo
         case .annet: .gray
         }
     }

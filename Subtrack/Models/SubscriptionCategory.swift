@@ -8,6 +8,10 @@ enum SubscriptionCategory: String, Codable, CaseIterable, Identifiable {
     case programvare
     case trening
     case nettsky
+    case nyheter
+    case boker
+    case spill
+    case ai
     case annet
 
     var id: Self { self }
@@ -19,6 +23,10 @@ enum SubscriptionCategory: String, Codable, CaseIterable, Identifiable {
         case .programvare: "Programvare"
         case .trening: "Trening"
         case .nettsky: "Nettsky"
+        case .nyheter: "Nyheter"
+        case .boker: "Bøker og lydbøker"
+        case .spill: "Spill"
+        case .ai: "AI"
         case .annet: "Annet"
         }
     }
@@ -31,6 +39,10 @@ enum SubscriptionCategory: String, Codable, CaseIterable, Identifiable {
         case .programvare: "terminal"
         case .trening: "figure.run"
         case .nettsky: "icloud"
+        case .nyheter: "newspaper"
+        case .boker: "book"
+        case .spill: "gamecontroller"
+        case .ai: "sparkles"
         case .annet: "square.grid.2x2"
         }
     }

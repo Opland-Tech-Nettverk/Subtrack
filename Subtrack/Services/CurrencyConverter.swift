@@ -23,8 +23,9 @@ struct ConvertedTotal: Equatable {
 
 /// Rene, testbare funksjoner for valutaomregning.
 enum CurrencyConverter {
-    /// Valutaene Frankfurter-API-et (ECB-kurser) støtter.
-    static let supportedCurrencies = [
+    /// Valutaene Frankfurter-API-et (ECB-kurser) støtter. `nonisolated`, siden
+    /// `MerchantText` bruker listen utenfor hovedtråden.
+    nonisolated static let supportedCurrencies = [
         "AUD", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP", "HKD",
         "HUF", "IDR", "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR", "NOK",
         "NZD", "PHP", "PLN", "RON", "SEK", "SGD", "THB", "TRY", "USD", "ZAR"

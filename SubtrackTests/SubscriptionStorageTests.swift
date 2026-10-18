@@ -72,4 +72,44 @@ struct SubscriptionStorageTests {
         #expect(Subscription.resolve(code: "podcast", legacy: SubscriptionCategory.musikk) == .musikk)
         #expect(Subscription.resolve(code: "daily", legacy: BillingInterval.monthly) == .monthly)
     }
+
+    // MARK: - Nye kategorier
+
+    @Test(arguments: [SubscriptionCategory.nyheter, .boker, .spill, .ai])
+    func newCategoryRoundTripsViaCode(category: SubscriptionCategory) {
+        let subscription = Subscription(name: "Test", price: 99, category: category)
+
+        #expect(subscription.categoryCode == category.rawValue)
+        #expect(subscription.kind == category)
+
+        subscription.kind = .streaming
+        subscription.kind = category
+
+        #expect(subscription.categoryCode == category.rawValue)
+        #expect(subscription.kind == category)
+    }
+
+    /// Eldre versjoner kjenner ikke de nye kategoriene, så det utfasede feltet får «Annet».
+    @Test(arguments: [SubscriptionCategory.nyheter, .boker, .spill, .ai])
+    func newCategoryWritesAnnetToLegacyField(category: SubscriptionCategory) {
+        let subscription = Subscription(name: "Test", price: 99, category: .streaming)
+        subscription.kind = category
+
+        subscription.categoryCode = nil
+
+        #expect(subscription.kind == .annet)
+    }
+
+    @Test func unknownFutureCategoryCodeFallsBackToLegacyField() {
+        let subscription = Subscription(name: "Test", price: 99, category: .musikk)
+
+        subscription.categoryCode = "podkast"
+
+        #expect(subscription.kind == .musikk)
+    }
+
+    @Test func newCategoriesComeBeforeAnnet() {
+        let cases = SubscriptionCategory.allCases
+        #expect(Array(cases.suffix(5)) == [.nyheter, .boker, .spill, .ai, .annet])
+    }
 }
