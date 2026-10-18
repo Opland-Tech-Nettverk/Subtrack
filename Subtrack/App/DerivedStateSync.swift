@@ -30,8 +30,10 @@ private struct DerivedStateSync: ViewModifier {
     private func refresh() {
         // Eldre datoer nær midnatt flyttes til kl. 12 før datoene flyttes frem, så
         // fremflyttingen arver det nye klokkeslettet. Bare én gang per abonnement per enhet,
-        // se `StoredDateCleanup` for hvorfor.
-        if StoredDateCleanup.runIfNeeded(for: subscriptions) {
+        // se `StoredDateCleanup` for hvorfor. Hoppes over i UI-testene: ryddingen merker
+        // abonnementene som ryddet i simulatorens ekte UserDefaults, og testdataene i minnet
+        // trenger den ikke.
+        if !AppEnvironment.isUITesting, StoredDateCleanup.runIfNeeded(for: subscriptions) {
             // Ryddingen er allerede merket som gjort i UserDefaults, som lagres uavhengig av
             // SwiftData. Lagre endringene nå, så de ikke går tapt hvis appen avsluttes før
             // SwiftData lagrer av seg selv.

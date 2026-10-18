@@ -49,6 +49,9 @@ enum WidgetSnapshotStore {
     }
 
     static func update(with subscriptions: [Subscription]) {
+        // UI-testene bruker en database i minnet, men App Groupen er simulatorens ekte.
+        // Testdataene skal ikke overskrive det widgeten viser.
+        guard !AppEnvironment.isUITesting else { return }
         guard let defaults = UserDefaults(suiteName: appGroupID) else {
             logger.error("Fant ikke App Groupen \(Self.appGroupID, privacy: .public); widgeten oppdateres ikke")
             return

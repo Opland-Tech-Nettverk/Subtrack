@@ -49,15 +49,24 @@ enum RenewalCalculator {
 
     /// Som `normalizedToNoon(_:calendar:)`, men bare når klokkeslettet ligger nær midnatt
     /// (før 06:00 eller fra 18:00). Brukes til å rydde opp i datoer lagret før skjemaet
-    /// begynte å lagre kl. 12. Vinduet hindrer at enheter i ulike tidssoner flytter datoen
-    /// frem og tilbake: 12:00 i Oslo er 11:00 i London, altså innenfor vinduet, så London
-    /// lar den være. Det holder så lenge enhetene ligger inntil 6 timer fra hverandre.
-    /// Kjent begrensning: enheten som rydder først, bestemmer dagen. En dato registrert nær
-    /// midnatt mens brukeren var på reise kan derfor havne én dag feil.
+    /// begynte å lagre kl. 12. Vinduet alene hindrer ikke at enheter langt fra hverandre
+    /// flytter hverandres datoer (12:00 i Oslo er 20:00 i Tokyo), så kalleren må også la
+    /// datoer som allerede står kl. 12 et sted være, se `isOnQuarterHour(_:)` og
+    /// `Subscription.normalizeStoredDates(calendar:)`.
     static func normalizedToNoonIfNearMidnight(_ date: Date, calendar: Calendar = .current) -> Date {
         let hour = calendar.component(.hour, from: date)
         guard hour < 6 || hour >= 18 else { return date }
         return normalizedToNoon(date, calendar: calendar)
+    }
+
+    /// Om tidspunktet ligger nøyaktig på et kvarter, med null sekunder. Alle tidssoner ligger
+    /// et helt antall kvarter fra UTC, og referansedatoen er midnatt UTC, så kl. 12:00 i en
+    /// hvilken som helst tidssone ligger alltid på et kvarter. Eldre datoer kom fra `Date.now`
+    /// da skjemaet ble åpnet og har vilkårlige sekunder og brøkdeler, så de treffer i praksis
+    /// aldri et kvarter. Brukes til å la datoer som allerede er satt til kl. 12 - av skjemaet
+    /// eller av ryddingen på en annen enhet - være i fred.
+    static func isOnQuarterHour(_ date: Date) -> Bool {
+        date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 900) == 0
     }
 
     /// Sikkerhetstak så en ugyldig kalenderberegning aldri kan gi en evig løkke.
