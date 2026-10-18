@@ -29,6 +29,23 @@ struct SubtrackApp: App {
         let setup = Self.makeModelContainer()
         modelContainer = setup.container
         databaseState = setup.state
+        Self.enqueueUITestShortcutDraftIfRequested()
+    }
+
+    /// UI-testene starter appen med `-UITestingShortcutDraft <navn>` for å late som snarveien
+    /// «Legg til abonnement» ble kjørt. Utkastet lages på samme måte som i snarveien.
+    private static func enqueueUITestShortcutDraftIfRequested() {
+        guard AppEnvironment.isUITesting,
+              let name = UserDefaults.standard.string(forKey: "UITestingShortcutDraft")
+        else { return }
+        let draft = ShortcutDraftBuilder.makeDraft(
+            name: name,
+            price: nil,
+            interval: nil,
+            category: nil,
+            nextRenewalDate: nil
+        )
+        AddSubscriptionRouter.shared.enqueue(draft)
     }
 
     var body: some Scene {
