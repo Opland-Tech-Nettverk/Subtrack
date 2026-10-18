@@ -11,6 +11,10 @@ struct SubscriptionFormView: View {
 
     /// Abonnementet som redigeres. `nil` betyr at vi lager et nytt.
     var subscriptionToEdit: Subscription?
+    /// Kalles når brukeren avslutter abonnementet fra skjemaet. Er den satt, står kalleren
+    /// for selve avslutningen (dato, angre-banner, haptikk og VoiceOver-kunngjøring), og
+    /// skjemaet bare lukkes. `nil` betyr at skjemaet avslutter abonnementet selv.
+    var onArchive: ((Subscription) -> Void)? = nil
 
     @State private var name = ""
     @State private var priceText = ""
@@ -35,7 +39,7 @@ struct SubscriptionFormView: View {
     @State private var initialSnapshot: Draft?
     @State private var showsDiscardConfirmation = false
     @State private var showsArchiveConfirmation = false
-    /// Settes én gang ved lasting, så seksjonen og dialogen ikke forsvinner under
+    /// Settes én gang ved lasting, så seksjonen ikke forsvinner under
     /// lukkeanimasjonen når abonnementet nettopp er avsluttet.
     @State private var canArchive = false
 
@@ -81,6 +85,11 @@ struct SubscriptionFormView: View {
     }
 
     private var isEditing: Bool { subscriptionToEdit != nil }
+
+    /// Lagret navn, siden ulagrede endringer i utkastet forkastes.
+    private var archiveConfirmationTitle: Text {
+        Text("Avslutte \(subscriptionToEdit?.name ?? "")?")
+    }
 
     /// Nevner at ulagrede endringer forkastes, siden "Avslutt" ikke spør om dem slik "Avbryt" gjør.
     private var archiveConfirmationMessage: Text {
@@ -217,7 +226,7 @@ struct SubscriptionFormView: View {
                         }
                     }
                 } header: {
-                    Text("Avslutte")
+                    Text("Avslutningslenke")
                 } footer: {
                     Text("Varselet får en knapp som åpner denne siden, så du raskt kan si opp.")
                 }
@@ -233,27 +242,28 @@ struct SubscriptionFormView: View {
 
                 // Avslutning tilbys bare for et eksisterende abonnement som ikke allerede er avsluttet.
                 // `canArchive` er fanget ved lasting, ikke lest live fra `isCancelled`.
-                if canArchive, let subscription = subscriptionToEdit {
+                if canArchive, subscriptionToEdit != nil {
                     Section {
                         Button(role: .destructive) {
                             showsArchiveConfirmation = true
                         } label: {
                             Label("Avslutt abonnement", systemImage: "archivebox")
                         }
-                        // Festet til knappen, slik at den vises som popover fra knappen på iPad.
-                        .confirmationDialog(
-                            // Lagret navn, siden ulagrede endringer i utkastet forkastes.
-                            "Avslutte \(subscription.name)?",
-                            isPresented: $showsArchiveConfirmation,
-                            titleVisibility: .visible
-                        ) {
-                            Button("Avslutt", role: .destructive) { archive(subscription) }
-                            Button("Avbryt", role: .cancel) {}
-                        } message: {
-                            archiveConfirmationMessage
-                        }
                     }
                 }
+            }
+            // Varsel i stedet for bekreftelsesdialog: festet til knappen ble dialogen en smal
+            // popover ved store tekststørrelser, der tittelen ble orddelt og meldingen kuttet.
+            // Festet her, utenfor den betingede seksjonen, så den ikke forsvinner med den.
+            .alert(
+                archiveConfirmationTitle,
+                isPresented: $showsArchiveConfirmation,
+                presenting: subscriptionToEdit
+            ) { subscription in
+                Button("Avslutt", role: .destructive) { archive(subscription) }
+                Button("Avbryt", role: .cancel) {}
+            } message: { _ in
+                archiveConfirmationMessage
             }
             .navigationTitle(isEditing ? "Rediger abonnement" : "Nytt abonnement")
             .navigationBarTitleDisplayMode(.inline)
@@ -400,15 +410,22 @@ struct SubscriptionFormView: View {
     }
 
     /// Flytter abonnementet til Avsluttede, slik sveipehandlingen i listen gjør.
-    /// Bare `cancelledDate` settes: andre ulagrede endringer i utkastet forkastes. Da gjør
-    /// knappen nøyaktig det den sier, og avslutningen lagrer ikke halvferdige endringer.
+    /// Er `onArchive` satt, overlates avslutningen til kalleren (som setter `cancelledDate`,
+    /// viser angre-banneret og gir haptikk og VoiceOver-kunngjøring), så den skjer på samme
+    /// måte som fra listen. Ellers settes `cancelledDate` her, med egen haptikk.
+    /// Uansett endres bare `cancelledDate`: andre ulagrede endringer i utkastet forkastes. Da
+    /// gjør knappen nøyaktig det den sier, og avslutningen lagrer ikke halvferdige endringer.
     /// I motsetning til "Avbryt" kommer det ingen egen forkast-dialog; i stedet sier
-    /// bekreftelsesdialogen fra om at ulagrede endringer forkastes. Programmatisk
+    /// bekreftelsesvarselet fra om at ulagrede endringer forkastes. Programmatisk
     /// `dismiss()` hindres ikke av `interactiveDismissDisabled`, som bare gjelder sveip nedover.
     private func archive(_ subscription: Subscription) {
-        // Widgeten og varslene oppdateres av `keepsDerivedStateInSync()` når modellen endres.
-        subscription.cancelledDate = .now
-        archiveFeedbackTrigger += 1
+        if let onArchive {
+            onArchive(subscription)
+        } else {
+            // Widgeten og varslene oppdateres av `keepsDerivedStateInSync()` når modellen endres.
+            subscription.cancelledDate = .now
+            archiveFeedbackTrigger += 1
+        }
         dismiss()
     }
 }

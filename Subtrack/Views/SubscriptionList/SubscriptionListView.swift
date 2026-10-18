@@ -137,7 +137,10 @@ struct SubscriptionListView: View {
                 SubscriptionFormView()
             }
             .sheet(item: $editingSubscription) { subscription in
-                SubscriptionFormView(subscriptionToEdit: subscription)
+                // Avslutt fra skjemaet går gjennom listen, så det får samme angre-banner,
+                // VoiceOver-beskjed og haptikk som fra sveip og hurtigmeny. Banneret ligger
+                // på listen og er synlig når arket har lukket seg.
+                SubscriptionFormView(subscriptionToEdit: subscription, onArchive: { archive($0) })
             }
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView()
@@ -263,7 +266,7 @@ struct SubscriptionListView: View {
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button("Angre", action: undoArchive)
-                .font(.subheadline.weight(.semibold))
+                .buttonStyle(UndoButtonStyle())
                 .accessibilityIdentifier("undoArchive")
         }
         .padding(.horizontal, 16)
@@ -323,6 +326,25 @@ struct SubscriptionListView: View {
             }
             archiveNotice = nil
         }
+    }
+}
+
+/// Angre-knappen i banneret: ser ut som en kapsel med aksentfarge, men trykkflaten er minst
+/// 44 × 44 pt. Banneret forsvinner etter noen sekunder, så et bom skal ikke koste angringen.
+/// Egen stil i stedet for `.bordered`, fordi trykkflaten da kan gjøres større enn kapselen
+/// uten at kapselen selv blir høyere og gjør banneret klumpete.
+private struct UndoButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.tint)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(.tint.opacity(configuration.isPressed ? 0.25 : 0.15), in: Capsule())
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            // Utenfor kapselen, så hele flaten på minst 44 × 44 pt tar imot trykket.
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
     }
 }
 

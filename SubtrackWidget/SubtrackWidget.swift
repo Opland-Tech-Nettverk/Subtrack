@@ -39,8 +39,9 @@ extension Color {
 }
 
 // Speiler `SubscriptionAppearance.color(forHex:)` i app-targetet: oransje, grønn og turkis
-// er for lyse for et hvitt ikon i lys modus og får en mørkere variant der. Endres fargene
-// eller verdiene her, må samme endring gjøres i appen.
+// får bare ca. 2:1 mot hvit bakgrunn og får en mørkere variant i lys modus (over 4:1).
+// Mørk modus bruker den lagrede fargen. Begrunnelsen står i appen. Endres fargene eller
+// verdiene her, må samme endring gjøres i appen.
 private extension Color {
     static func palette(hex: String) -> Color? {
         let digits = (hex.hasPrefix("#") ? String(hex.dropFirst()) : hex).uppercased()

@@ -57,7 +57,7 @@ Appen er skrevet i Swift og SwiftUI, bruker bare Apples egne rammeverk og har br
 - **Pris skrives slik folk faktisk skriver den:** «149,90», «1 000», «1.234,50» og «1,234.50» godtas. Tvetydige verdier som «1,2,3» avvises med en tydelig feilmelding i stedet for at appen gjetter.
 - **Notat** og **avslutningslenke** per abonnement. Lenken kan skrives uten `https://` (for eksempel `netflix.com/cancel`) og kan åpnes direkte fra skjemaet.
 - **Ingen endringer går tapt ved et uhell:** har du endret noe, må du bekrefte før skjemaet forkastes, og det kan ikke sveipes bort.
-- **«Avslutt abonnement»** nederst i skjemaet for et eksisterende abonnement flytter det til arkivet etter en bekreftelse. Andre ulagrede endringer i skjemaet forkastes da.
+- **«Avslutt abonnement»** nederst i skjemaet for et eksisterende abonnement flytter det til arkivet etter en bekreftelse, med samme angre-banner som i listen. Andre ulagrede endringer i skjemaet forkastes da.
 
 ### Valutaer og omregning
 
@@ -123,10 +123,10 @@ Abonnementene synkroniseres mellom iPhone og iPad via CloudKit i din private iCl
 ### Tilgjengelighet
 
 - **Dynamic Type:** ved de største tekststørrelsene stables rader, sammendrag og beløp under hverandre i stedet for å kuttes. Stolpediagrammet byttes ut med en enkel liste, ikonene vokser med teksten (med et tak), og widgeten viser færre rader.
-- **VoiceOver:** hver rad leses som én knapp med et hint om at den åpner abonnementet for redigering. Avslutter du et abonnement fra listen, leses det opp, og angre-banneret blir stående lenger. Dekorative ikoner er skjult, sektordiagrammet har en tekstlig liste som alternativ, stolpene har navn og beløp, og ikon- og fargevelgeren har navn på hvert valg og sier hvilket som er valgt. Glidebryteren for glass-styrke har etikett og verdi i prosent.
+- **VoiceOver:** hver rad leses som én knapp med et hint om at den åpner abonnementet for redigering. Avslutter du et abonnement, leses det opp, og angre-banneret blir stående lenger. Dekorative ikoner er skjult, sektordiagrammet har en tekstlig liste som alternativ, stolpene har navn og beløp, og ikon- og fargevelgeren har navn på hvert valg og sier hvilket som er valgt. Glidebryteren for glass-styrke har etikett og verdi i prosent.
 - **Reduser gjennomsiktighet:** er dette slått på i iOS, blir oppsummeringskortene matte uansett hva glass-styrken står på.
 - **Reduser bevegelse:** angre-banneret tones bare inn og ut i stedet for å gli opp.
-- **Kontrast:** grønnfargen for sparte beløp er mørkere i lys modus. Oransje, grønn og turkis i fargepaletten får også en mørkere variant i lys modus, både i appen og i widgeten, så det hvite ikonet synes. Den lagrede fargen endres ikke. Pausede rader demper bare ikonet og toner ned beløpet, så teksten forblir lesbar.
+- **Kontrast:** grønnfargen for sparte beløp er mørkere i lys modus. Oransje, grønn og turkis i fargepaletten får også en mørkere variant i lys modus, både i appen og i widgeten, så den fargede sirkelen skiller seg fra den hvite bakgrunnen (over 4:1 i stedet for ca. 2:1). I mørk modus brukes den lagrede fargen, som står godt mot den mørke bakgrunnen. Det hvite ikonet i sirkelen er dekorativt, så det er navnet som bærer betydningen. Den lagrede fargen endres ikke. Pausede rader demper bare ikonet og toner ned beløpet, så teksten forblir lesbar.
 - Trykkflatene i ikon- og fargevelgeren er minst 44 × 44 punkter.
 
 ### Robusthet

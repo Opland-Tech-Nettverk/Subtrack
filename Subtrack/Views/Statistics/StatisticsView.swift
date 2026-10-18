@@ -56,7 +56,9 @@ struct StatisticsView: View {
                     } description: {
                         Text("Legg til abonnementer i Oversikt, så ser du her hva de koster per kategori.")
                     } actions: {
+                        // Fremhevet knapp gir et langt større trykkområde enn en ren tekstknapp.
                         Button("Gå til Oversikt", action: showOverview)
+                            .buttonStyle(.borderedProminent)
                     }
                 } else {
                     // Det finnes abonnementer, men alle er pauset eller avsluttet.
@@ -66,6 +68,7 @@ struct StatisticsView: View {
                         Text("Pausede og avsluttede abonnementer tas ikke med i statistikken.")
                     } actions: {
                         Button("Gå til Oversikt", action: showOverview)
+                            .buttonStyle(.borderedProminent)
                     }
                 }
             }

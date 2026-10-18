@@ -88,10 +88,13 @@ extension Color {
 
 extension SubscriptionAppearance {
     /// Fargen et abonnement vises med. Paletten bruker iOS' mørk modus-farger, og oransje,
-    /// grønn og turkis er så lyse at et hvitt ikon på dem bare får ca. 2:1 i lys modus.
-    /// De får derfor en mørkere variant i lys modus (minst 3:1 for hvitt ikon), mens
-    /// mørk modus beholder den lagrede fargen. Indigo, lilla, rosa, rød og grå klarer
-    /// 3:1 allerede (3,3–5,1:1) og brukes som de er.
+    /// grønn og turkis er så lyse at den fargede sirkelen bare får ca. 2:1 mot hvit
+    /// bakgrunn. I lys modus får de derfor en mørkere variant (over 4:1 mot bakgrunnen,
+    /// kravet for grafikk er 3:1), og det hvite ikonet får da også ca. 4,2–4,5:1.
+    /// Mørk modus beholder den lagrede fargen: sirkelen får over 10:1 mot den mørke
+    /// bakgrunnen, mens det hvite ikonet på den bare får ca. 2:1. Det godtas fordi ikonet
+    /// er dekorativt (skjult for VoiceOver) og navnet bærer betydningen. Indigo, lilla,
+    /// rosa, rød og grå klarer 3:1 allerede (3,3–5,1:1) og brukes som de er.
     ///
     /// Selve hex-verdien endres ikke: den er lagret i brukerdata og brukes til å finne
     /// valgt farge i `colors`.
