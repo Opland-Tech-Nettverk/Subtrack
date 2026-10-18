@@ -7,6 +7,7 @@ struct StatisticsView: View {
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @Environment(ExchangeRateStore.self) private var exchangeRates
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.colorScheme) private var colorScheme
     /// Høyden per stolpe vokser med tekststørrelsen, så navn og beløp ikke overlapper.
     @ScaledMetric(relativeTo: .caption) private var barRowHeight: CGFloat = 44
 
@@ -188,6 +189,9 @@ struct StatisticsView: View {
             }
         }
         .frame(height: CGFloat(viewModel.mostExpensiveSubscriptions.count) * barRowHeight + 20)
+        // Swift Charts oppdaterer ikke farge på akseetikettene når man bytter mellom lys og
+        // mørk modus mens appen kjører, så navnene ble nesten usynlige. Ny id bygger diagrammet på nytt.
+        .id(colorScheme)
     }
 }
 
