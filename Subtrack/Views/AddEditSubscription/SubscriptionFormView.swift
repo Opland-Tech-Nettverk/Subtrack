@@ -29,9 +29,15 @@ struct SubscriptionFormView: View {
     @State private var cancelLinkText = ""
     /// Økes ved lagring for å utløse haptisk tilbakemelding.
     @State private var saveFeedbackTrigger = 0
+    /// Økes når abonnementet avsluttes fra skjemaet, for haptisk tilbakemelding.
+    @State private var archiveFeedbackTrigger = 0
     /// Utkastet slik det var da skjemaet ble lastet. `nil` betyr at det ikke er lastet ennå.
     @State private var initialSnapshot: Draft?
     @State private var showsDiscardConfirmation = false
+    @State private var showsArchiveConfirmation = false
+    /// Settes én gang ved lasting, så seksjonen og dialogen ikke forsvinner under
+    /// lukkeanimasjonen når abonnementet nettopp er avsluttet.
+    @State private var canArchive = false
 
     /// Alle feltene i skjemaet, slik at vi kan se om brukeren har endret noe.
     private struct Draft: Equatable {
@@ -75,6 +81,14 @@ struct SubscriptionFormView: View {
     }
 
     private var isEditing: Bool { subscriptionToEdit != nil }
+
+    /// Nevner at ulagrede endringer forkastes, siden "Avslutt" ikke spør om dem slik "Avbryt" gjør.
+    private var archiveConfirmationMessage: Text {
+        if hasUnsavedChanges {
+            return Text("Abonnementet flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere. Endringene du ikke har lagret, blir forkastet.")
+        }
+        return Text("Abonnementet flyttes til Avsluttede, så du ser hva du sparer. Du kan gjenoppta det senere.")
+    }
 
     private var cancelURL: URL? {
         CancelLink.url(from: cancelLinkText)
@@ -216,6 +230,30 @@ struct SubscriptionFormView: View {
                 Section {
                     Toggle("Aktiv", isOn: $isActive)
                 }
+
+                // Avslutning tilbys bare for et eksisterende abonnement som ikke allerede er avsluttet.
+                // `canArchive` er fanget ved lasting, ikke lest live fra `isCancelled`.
+                if canArchive, let subscription = subscriptionToEdit {
+                    Section {
+                        Button(role: .destructive) {
+                            showsArchiveConfirmation = true
+                        } label: {
+                            Label("Avslutt abonnement", systemImage: "archivebox")
+                        }
+                        // Festet til knappen, slik at den vises som popover fra knappen på iPad.
+                        .confirmationDialog(
+                            // Lagret navn, siden ulagrede endringer i utkastet forkastes.
+                            "Avslutte \(subscription.name)?",
+                            isPresented: $showsArchiveConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Avslutt", role: .destructive) { archive(subscription) }
+                            Button("Avbryt", role: .cancel) {}
+                        } message: {
+                            archiveConfirmationMessage
+                        }
+                    }
+                }
             }
             .navigationTitle(isEditing ? "Rediger abonnement" : "Nytt abonnement")
             .navigationBarTitleDisplayMode(.inline)
@@ -247,6 +285,8 @@ struct SubscriptionFormView: View {
             // Hindrer at et utfylt skjema forsvinner ved et utilsiktet sveip nedover.
             .interactiveDismissDisabled(hasUnsavedChanges)
             .sensoryFeedback(.success, trigger: saveFeedbackTrigger)
+            // Samme haptikk som når abonnementet avsluttes med sveip i listen.
+            .sensoryFeedback(.impact(weight: .medium), trigger: archiveFeedbackTrigger)
         }
     }
 
@@ -268,6 +308,7 @@ struct SubscriptionFormView: View {
             colorHex = subscription.colorHex
             splitCount = subscription.splitCount
             cancelLinkText = subscription.cancelURLString ?? ""
+            canArchive = !subscription.isCancelled
         } else {
             currencyCode = mainCurrency
         }
@@ -357,6 +398,19 @@ struct SubscriptionFormView: View {
         saveFeedbackTrigger += 1
         dismiss()
     }
+
+    /// Flytter abonnementet til Avsluttede, slik sveipehandlingen i listen gjør.
+    /// Bare `cancelledDate` settes: andre ulagrede endringer i utkastet forkastes. Da gjør
+    /// knappen nøyaktig det den sier, og avslutningen lagrer ikke halvferdige endringer.
+    /// I motsetning til "Avbryt" kommer det ingen egen forkast-dialog; i stedet sier
+    /// bekreftelsesdialogen fra om at ulagrede endringer forkastes. Programmatisk
+    /// `dismiss()` hindres ikke av `interactiveDismissDisabled`, som bare gjelder sveip nedover.
+    private func archive(_ subscription: Subscription) {
+        // Widgeten og varslene oppdateres av `keepsDerivedStateInSync()` når modellen endres.
+        subscription.cancelledDate = .now
+        archiveFeedbackTrigger += 1
+        dismiss()
+    }
 }
 
 /// Rutenett for å velge ikon og farge. `nil` betyr standard: kategoriens ikon og appens aksentfarge.
@@ -368,7 +422,7 @@ private struct AppearancePicker: View {
     private let columns = [GridItem(.adaptive(minimum: 44))]
 
     private var selectedColor: Color {
-        colorHex.flatMap(Color.init(hex:)) ?? .accentColor
+        colorHex.flatMap(SubscriptionAppearance.color(forHex:)) ?? .accentColor
     }
 
     var body: some View {
@@ -397,7 +451,7 @@ private struct AppearancePicker: View {
                     SelectableCircle(isSelected: colorHex == option.hex, name: option.name) {
                         colorHex = option.hex
                     } content: {
-                        Circle().fill(Color(hex: option.hex) ?? .accentColor)
+                        Circle().fill(SubscriptionAppearance.color(forHex: option.hex) ?? .accentColor)
                     }
                 }
             }

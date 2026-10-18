@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Ikonene og fargene brukeren kan velge for et abonnement. Navnene brukes av VoiceOver.
 enum SubscriptionAppearance {
@@ -60,6 +61,49 @@ extension Color {
             blue: Double(value & 0xFF) / 255
         )
     }
+
+    /// Grønn for «spart»-beløp. Systemgrønn (#30D158) gir bare ca. 2:1 mot hvit bakgrunn,
+    /// så i lys modus brukes en mørkere grønn (#1B7D33, ca. 5,2:1 mot hvit og 4,7:1 mot
+    /// gruppert bakgrunn) som holder kravet på 4,5:1 for tekst. I mørk modus er systemgrønn
+    /// lesbar (ca. 8:1 mot mørk bakgrunn) og beholdes.
+    static let savings = Color.adaptive(light: 0x1B7D33, dark: 0x30D158)
+
+    /// Farge som bytter mellom to RGB-verdier etter lys/mørk modus.
+    /// `nonisolated` så closuren ikke arver hovedaktøren; UIKit kan løse fargen hvor som helst.
+    nonisolated fileprivate static func adaptive(light: UInt32, dark: UInt32) -> Color {
+        Color(uiColor: UIColor { traits in
+            Color.rgbColor(traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+
+    nonisolated private static func rgbColor(_ value: UInt32) -> UIColor {
+        UIColor(
+            red: CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >> 8) & 0xFF) / 255,
+            blue: CGFloat(value & 0xFF) / 255,
+            alpha: 1
+        )
+    }
+}
+
+extension SubscriptionAppearance {
+    /// Fargen et abonnement vises med. Paletten bruker iOS' mørk modus-farger, og oransje,
+    /// grønn og turkis er så lyse at et hvitt ikon på dem bare får ca. 2:1 i lys modus.
+    /// De får derfor en mørkere variant i lys modus (minst 3:1 for hvitt ikon), mens
+    /// mørk modus beholder den lagrede fargen. Indigo, lilla, rosa, rød og grå klarer
+    /// 3:1 allerede (3,3–5,1:1) og brukes som de er.
+    ///
+    /// Selve hex-verdien endres ikke: den er lagret i brukerdata og brukes til å finne
+    /// valgt farge i `colors`.
+    nonisolated static func color(forHex hex: String) -> Color? {
+        let digits = (hex.hasPrefix("#") ? String(hex.dropFirst()) : hex).uppercased()
+        return switch digits {
+        case "FF9F0A": Color.adaptive(light: 0xC75C00, dark: 0xFF9F0A) // Oransje, ca. 4,2:1
+        case "30D158": Color.adaptive(light: 0x248A3D, dark: 0x30D158) // Grønn, ca. 4,4:1
+        case "40C8E0": Color.adaptive(light: 0x008299, dark: 0x40C8E0) // Turkis, ca. 4,5:1
+        default: Color(hex: hex)
+        }
+    }
 }
 
 extension Subscription {
@@ -68,6 +112,6 @@ extension Subscription {
     }
 
     var displayColor: Color {
-        colorHex.flatMap(Color.init(hex:)) ?? .accentColor
+        colorHex.flatMap(SubscriptionAppearance.color(forHex:)) ?? .accentColor
     }
 }

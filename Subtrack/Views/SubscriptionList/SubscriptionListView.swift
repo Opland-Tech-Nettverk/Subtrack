@@ -1,10 +1,14 @@
 import SwiftUI
 import SwiftData
+import Accessibility
 
 /// Oversikten over abonnementene. Endrer bare modellene: datoer, widget og varsler
 /// holdes i takt av `keepsDerivedStateInSync()` på roten av appen.
 struct SubscriptionListView: View {
     @Environment(ExchangeRateStore.self) private var exchangeRates
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @AppStorage(AppSettingsKeys.sortOrder) private var sortOrder: SubscriptionSortOrder = .renewal
     @Query(sort: \Subscription.nextRenewalDate) private var subscriptions: [Subscription]
@@ -16,6 +20,34 @@ struct SubscriptionListView: View {
     // Økes for å utløse haptisk tilbakemelding.
     @State private var pauseFeedbackTrigger = 0
     @State private var archiveFeedbackTrigger = 0
+    /// Sist avsluttede abonnement, som kan angres fra banneret nederst en liten stund.
+    @State private var archiveNotice: ArchiveNotice?
+    @State private var archiveNoticeDismissal: Task<Void, Never>?
+
+    /// Navnet tas vare på for seg, så banneret aldri leser fra en modell som er slettet i mellomtiden.
+    /// Avslutningstidspunktet skiller denne avslutningen fra en senere av samme abonnement.
+    private struct ArchiveNotice {
+        let subscription: Subscription
+        let name: String
+        let cancelledDate: Date
+    }
+
+    /// Banneret vises bare så lenge abonnementet fortsatt er avsluttet fra akkurat denne
+    /// avslutningen. Er det gjenopptatt fra arkivet, slettet for godt eller avsluttet på nytt
+    /// et annet sted, er det ingenting å angre her.
+    private var visibleArchiveNotice: ArchiveNotice? {
+        guard let archiveNotice,
+              subscriptions.contains(where: {
+                  $0 === archiveNotice.subscription && $0.cancelledDate == archiveNotice.cancelledDate
+              })
+        else { return nil }
+        return archiveNotice
+    }
+
+    /// Lenge nok til å rekke å angre. Med VoiceOver tar det lengre tid å finne knappen.
+    private var archiveNoticeDuration: Duration {
+        voiceOverEnabled ? .seconds(10) : .seconds(5)
+    }
 
     private var isSearching: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
@@ -141,7 +173,7 @@ struct SubscriptionListView: View {
                     } label: {
                         LabeledContent {
                             Text("spart \(totalSaved.formatted(.currency(code: mainCurrency)))")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.savings)
                         } label: {
                             Label("Avsluttede (\(archivedSubscriptions.count))", systemImage: "archivebox")
                         }
@@ -156,44 +188,141 @@ struct SubscriptionListView: View {
                 ContentUnavailableView.search(text: searchText)
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if let notice = visibleArchiveNotice {
+                undoBanner(for: notice)
+            }
+        }
         .animation(.smooth, value: sortOrder)
     }
 
     private func row(for subscription: Subscription) -> some View {
-        SubscriptionRow(subscription: subscription)
-            .accessibilityIdentifier("subscription.\(subscription.name)")
-            .contentShape(Rectangle())
-            .onTapGesture { editingSubscription = subscription }
-            .swipeActions(edge: .trailing) {
-                // Avslutt flytter til arkivet i stedet for å slette, så det kan angres
-                // og besparelsen vises. Sletting for godt skjer fra arkivet.
-                Button {
-                    archive(subscription)
-                } label: {
-                    Label("Avslutt", systemImage: "archivebox")
-                }
-                .tint(.red)
-                Button("Rediger") {
-                    editingSubscription = subscription
-                }
-                .tint(.blue)
+        // En ekte knapp, så VoiceOver sier «knapp» og raden markeres når man trykker.
+        Button {
+            editingSubscription = subscription
+        } label: {
+            SubscriptionRow(subscription: subscription)
+                // Ellers farger knappen navnet med aksentfargen; raden skal se ut som før.
+                // `Color.primary` og ikke `.primary`, som er hierarkisk og kan arve knappens farge.
+                .foregroundStyle(Color.primary)
+        }
+        .accessibilityIdentifier("subscription.\(subscription.name)")
+        .accessibilityHint("Åpner abonnementet for redigering.")
+        // Ingen full sveip: Avslutt skal ikke skje ved et uhell, bare ved trykk på knappen.
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            // Avslutt flytter til arkivet i stedet for å slette, så det kan angres
+            // og besparelsen vises. Sletting for godt skjer fra arkivet.
+            Button {
+                archive(subscription)
+            } label: {
+                Label("Avslutt", systemImage: "archivebox")
             }
-            .swipeActions(edge: .leading) {
-                Button(subscription.isActive ? "Pause" : "Gjenoppta") {
-                    withAnimation(.smooth) {
-                        subscription.isActive.toggle()
-                    }
-                    pauseFeedbackTrigger += 1
-                }
-                .tint(subscription.isActive ? .orange : .green)
+            .tint(.red)
+            Button("Rediger") {
+                editingSubscription = subscription
             }
+            .tint(.blue)
+        }
+        .swipeActions(edge: .leading) {
+            Button(subscription.isActive ? "Pause" : "Gjenoppta") {
+                togglePause(subscription)
+            }
+            .tint(subscription.isActive ? .orange : .green)
+        }
+        // De samme handlingene ved å holde inne, for dem som ikke finner sveipene.
+        .contextMenu {
+            Button {
+                editingSubscription = subscription
+            } label: {
+                Label("Rediger", systemImage: "pencil")
+            }
+            Button {
+                togglePause(subscription)
+            } label: {
+                Label(
+                    subscription.isActive ? "Pause" : "Gjenoppta",
+                    systemImage: subscription.isActive ? "pause" : "play"
+                )
+            }
+            Button(role: .destructive) {
+                archive(subscription)
+            } label: {
+                Label("Avslutt", systemImage: "archivebox")
+            }
+        }
+    }
+
+    /// Kort beskjed nederst etter at et abonnement er avsluttet, med mulighet til å angre.
+    private func undoBanner(for notice: ArchiveNotice) -> some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+
+        return layout {
+            Text("«\(notice.name)» er avsluttet")
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button("Angre", action: undoArchive)
+                .font(.subheadline.weight(.semibold))
+                .accessibilityIdentifier("undoArchive")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .frame(maxWidth: 720)
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+        .accessibilityElement(children: .contain)
+        // Uten bevegelse ved Reduser bevegelse: banneret tones bare inn og ut.
+        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+    }
+
+    private func togglePause(_ subscription: Subscription) {
+        withAnimation(.smooth) {
+            subscription.isActive.toggle()
+        }
+        pauseFeedbackTrigger += 1
     }
 
     private func archive(_ subscription: Subscription) {
+        let name = subscription.name
+        // Samme verdi i modellen og i banneret, så banneret kjenner igjen akkurat denne avslutningen.
+        let now = Date.now
         withAnimation(.smooth) {
-            subscription.cancelledDate = .now
+            subscription.cancelledDate = now
+            archiveNotice = ArchiveNotice(subscription: subscription, name: name, cancelledDate: now)
         }
         archiveFeedbackTrigger += 1
+        // Raden forsvinner uten at noe annet sier fra, så VoiceOver får beskjed om hva som skjedde.
+        // Høy prioritet, så beskjeden ikke avbrytes av at fokus flytter seg fra raden som forsvant.
+        var announcement = AttributedString("\(name) er avsluttet")
+        announcement.accessibilitySpeechAnnouncementPriority = .high
+        AccessibilityNotification.Announcement(announcement).post()
+
+        // Et nytt avslutt erstatter forrige banner og starter nedtellingen på nytt.
+        archiveNoticeDismissal?.cancel()
+        let duration = archiveNoticeDuration
+        archiveNoticeDismissal = Task {
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled else { return }
+            withAnimation(.smooth) {
+                archiveNotice = nil
+            }
+        }
+    }
+
+    private func undoArchive() {
+        archiveNoticeDismissal?.cancel()
+        archiveNoticeDismissal = nil
+        withAnimation(.smooth) {
+            // Bare om abonnementet fortsatt finnes og er avsluttet fra denne avslutningen;
+            // ellers er det ingenting å angre.
+            if let notice = visibleArchiveNotice {
+                notice.subscription.cancelledDate = nil
+            }
+            archiveNotice = nil
+        }
     }
 }
 

@@ -32,8 +32,22 @@ final class SubtrackUITests: XCTestCase {
         XCTAssertTrue(row(named: name).waitForExistence(timeout: 5), "\(name) skulle vært i listen etter lagring")
     }
 
+    /// Raden er en knapp, men søket går på identifikatoren uansett elementtype,
+    /// så det tåler at SwiftUI eksponerer den som knapp eller celle.
     private func row(named name: String) -> XCUIElement {
         app.descendants(matching: .any)["subscription.\(name)"].firstMatch
+    }
+
+    /// Angre-knappen i banneret som vises en liten stund etter at et abonnement er avsluttet.
+    private var undoArchiveButton: XCUIElement {
+        app.buttons["undoArchive"]
+    }
+
+    /// Venter til elementet er borte. `waitForExistence` svarer med en gang om det fortsatt
+    /// finnes, så det egner seg ikke til å vente på at noe forsvinner.
+    private func waitForDisappearance(of element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
 
     // MARK: - Tester
@@ -81,10 +95,12 @@ final class SubtrackUITests: XCTestCase {
     func testArchivingAndRestoringASubscription() {
         addSubscription(name: "Netflix", price: "149")
 
-        // Avslutt: flyttes til arkivet.
+        // Avslutt: flyttes til arkivet. Full sveip er slått av, så knappen må trykkes.
         row(named: "Netflix").swipeLeft()
         app.buttons["Avslutt"].tap()
-        XCTAssertFalse(row(named: "Netflix").waitForExistence(timeout: 2))
+        // Banneret sjekkes først, siden det forsvinner av seg selv etter noen sekunder.
+        XCTAssertTrue(undoArchiveButton.waitForExistence(timeout: 2), "Angre-banneret skulle vist seg etter avslutt")
+        XCTAssertTrue(waitForDisappearance(of: row(named: "Netflix")))
 
         let archiveLink = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Avsluttede'")).firstMatch
         XCTAssertTrue(archiveLink.waitForExistence(timeout: 5))
@@ -100,6 +116,28 @@ final class SubtrackUITests: XCTestCase {
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(row(named: "Netflix").waitForExistence(timeout: 5))
         XCTAssertFalse(archiveLink.exists)
+        // Abonnementet er ikke lenger avsluttet, så det er ingenting å angre.
+        XCTAssertFalse(undoArchiveButton.exists)
+    }
+
+    @MainActor
+    func testArchivingFromContextMenuCanBeUndone() {
+        addSubscription(name: "Netflix", price: "149")
+
+        // Hold inne raden for å få opp menyen, og avslutt derfra.
+        row(named: "Netflix").press(forDuration: 1.0)
+        let archiveItem = app.buttons["Avslutt"]
+        XCTAssertTrue(archiveItem.waitForExistence(timeout: 5))
+        archiveItem.tap()
+
+        // Angre i banneret før det forsvinner av seg selv: raden er tilbake, og ingenting
+        // ligger i arkivet. Banneret vises bare mens abonnementet er avsluttet.
+        XCTAssertTrue(undoArchiveButton.waitForExistence(timeout: 2), "Angre-banneret skulle vist seg etter avslutt")
+        undoArchiveButton.tap()
+        XCTAssertTrue(row(named: "Netflix").waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForDisappearance(of: undoArchiveButton))
+        let archiveLink = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Avsluttede'")).firstMatch
+        XCTAssertTrue(waitForDisappearance(of: archiveLink))
     }
 
     @MainActor
@@ -125,5 +163,16 @@ final class SubtrackUITests: XCTestCase {
         app.buttons["Statistikk"].tap()
         XCTAssertTrue(app.staticTexts["Kostnad per kategori"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Dyreste abonnement"].exists)
+    }
+
+    @MainActor
+    func testStatisticsEmptyStateLeadsToOverview() {
+        app.buttons["Statistikk"].tap()
+        let goToOverview = app.buttons["Gå til Oversikt"]
+        XCTAssertTrue(goToOverview.waitForExistence(timeout: 5))
+
+        goToOverview.tap()
+        XCTAssertTrue(waitForDisappearance(of: goToOverview))
+        XCTAssertTrue(app.navigationBars["Subtrack"].waitForExistence(timeout: 5))
     }
 }
