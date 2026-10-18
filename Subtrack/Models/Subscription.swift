@@ -192,8 +192,8 @@ final class Subscription {
 
     /// Flytter lagrede datoer med klokkeslett nær midnatt til kl. 12 samme dag, så de viser
     /// samme dato i andre tidssoner. Se `RenewalCalculator.normalizedToNoonIfNearMidnight`
-    /// for hvorfor bare tidspunkter nær midnatt flyttes. Datoer som ligger på et kvarter, er
-    /// allerede satt til kl. 12 i en eller annen tidssone og avgjør ikke selv om datoene
+    /// for hvorfor bare tidspunkter nær midnatt flyttes. Datoer som ligger på et kvarter, regnes
+    /// som allerede satt til kl. 12 i en eller annen tidssone og avgjør ikke selv om datoene
     /// flyttes (se under og
     /// `RenewalCalculator.isOnQuarterHour`): 12:00 i Oslo er 00:00 neste dag i Auckland, og
     /// ville ellers blitt flyttet til feil dag der. `cancelledDate` røres ikke.

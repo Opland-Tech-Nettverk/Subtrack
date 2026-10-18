@@ -24,6 +24,10 @@ import Foundation
 ///   skrivingen i iCloud. Begge resultatene ligger kl. 12, så ingen av dem ryddes på nytt.
 /// - Endrer en eldre versjon et abonnement som allerede er ryddet her, ryddes det ikke igjen
 ///   her. Den enheten rydder det selv når den oppdateres, siden den ikke har ryddet det før.
+/// - Eldre datoer som tilfeldigvis står på et helt kvarter (typisk valgt i datovelgeren,
+///   omtrent 1 av 15), ryddes ikke, fordi de ikke kan skilles fra datoer som allerede er satt
+///   til kl. 12. De oppfører seg som før ryddingen fantes. Å skille dem ville krevd et nytt
+///   lagret felt.
 enum StoredDateCleanup {
     /// UserDefaults-nøkkel for ID-ene (`uuidString`) til abonnement som er ryddet på denne
     /// enheten. ID-er til slettede abonnement blir liggende, men det er ufarlig: de tar lite
