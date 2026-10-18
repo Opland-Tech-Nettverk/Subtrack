@@ -192,13 +192,18 @@ final class Subscription {
 
     /// Flytter lagrede datoer med klokkeslett nær midnatt til kl. 12 samme dag, så de viser
     /// samme dato i andre tidssoner. Se `RenewalCalculator.normalizedToNoonIfNearMidnight`
-    /// for hvorfor bare tidspunkter nær midnatt flyttes. `cancelledDate` røres ikke.
+    /// for hvorfor bare tidspunkter nær midnatt flyttes. Datoer som ligger på et kvarter, er
+    /// allerede satt til kl. 12 i en eller annen tidssone og avgjør ikke selv om datoene
+    /// flyttes (se under og
+    /// `RenewalCalculator.isOnQuarterHour`): 12:00 i Oslo er 00:00 neste dag i Auckland, og
+    /// ville ellers blitt flyttet til feil dag der. `cancelledDate` røres ikke.
     func normalizeStoredDates(calendar: Calendar = .current) {
         // Fornyelsene regnes ut fra ankeret med ankerets klokkeslett, og en fornyelse som
         // ligger tidligere på dagen enn `nextRenewalDate` hoppes over. Må én av dem flyttes,
-        // flyttes derfor begge til kl. 12, så de fortsatt har samme klokkeslett.
+        // flyttes derfor begge til kl. 12, så de fortsatt har samme klokkeslett. En dato på et
+        // kvarter avgjør ikke om de flyttes, men flyttes med når den andre må flyttes.
         let needsNormalizing = [nextRenewalDate, billingAnchorDate].contains { date in
-            guard let date else { return false }
+            guard let date, !RenewalCalculator.isOnQuarterHour(date) else { return false }
             return RenewalCalculator.normalizedToNoonIfNearMidnight(date, calendar: calendar) != date
         }
         if needsNormalizing {
@@ -214,7 +219,7 @@ final class Subscription {
                 }
             }
         }
-        if let trialEndDate {
+        if let trialEndDate, !RenewalCalculator.isOnQuarterHour(trialEndDate) {
             let trialEnd = RenewalCalculator.normalizedToNoonIfNearMidnight(trialEndDate, calendar: calendar)
             if trialEnd != trialEndDate {
                 self.trialEndDate = trialEnd

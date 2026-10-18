@@ -131,6 +131,9 @@ enum NotificationScheduler {
     /// Trygt å kalle mange ganger raskt etter hverandre: kjøringene går etter tur, og en ny
     /// avbryter den forrige, så bare den siste planleggingen blir stående.
     static func reschedule(for subscriptions: [Subscription]) async {
+        // UI-testene bruker en database i minnet, men varslene og bokføringen i UserDefaults
+        // er simulatorens ekte. En omplanlegging her ville fjernet utviklerens ventende varsler.
+        guard !AppEnvironment.isUITesting else { return }
         let previous = currentReschedule
         previous?.cancel()
         // Arver MainActor herfra, som resten av appen.

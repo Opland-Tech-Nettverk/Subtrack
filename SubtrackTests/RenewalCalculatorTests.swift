@@ -280,6 +280,60 @@ struct RenewalCalculatorTests {
         }
     }
 
+    // MARK: - Klokkeslett på et kvarter
+
+    private func zonedCalendar(_ identifier: String) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: identifier)!
+        return calendar
+    }
+
+    private func zonedDate(
+        _ identifier: String,
+        _ year: Int, _ month: Int, _ day: Int,
+        _ hour: Int, _ minute: Int, _ second: Int = 0
+    ) -> Date {
+        zonedCalendar(identifier).date(
+            from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute, second: second)
+        )!
+    }
+
+    // Kathmandu ligger UTC+5:45 og Chatham UTC+12:45 (vinter, juli) / UTC+13:45 (sommer, januar).
+    @Test(arguments: ["Europe/Oslo", "Asia/Tokyo", "Asia/Kathmandu", "Pacific/Chatham"])
+    func isOnQuarterHourForNoonInAnyTimeZone(identifier: String) {
+        for month in [1, 7] {
+            let noon = zonedDate(identifier, 2026, month, 15, 12, 0)
+            #expect(RenewalCalculator.isOnQuarterHour(noon))
+        }
+    }
+
+    @Test(arguments: ["Asia/Kathmandu", "Pacific/Chatham"])
+    func quarterHourTimeZonesReallyAreOffsetByAQuarter(identifier: String) {
+        // Sikrer at testen over faktisk dekker tidssoner som ikke ligger et helt antall timer
+        // fra UTC: 45 minutter = 2700 sekunder utover hele timer, både vinter og sommer.
+        let timeZone = zonedCalendar(identifier).timeZone
+        for month in [1, 7] {
+            let noon = zonedDate(identifier, 2026, month, 15, 12, 0)
+            #expect(timeZone.secondsFromGMT(for: noon) % 3600 == 2700)
+        }
+    }
+
+    @Test(arguments: [0, 15, 30, 45])
+    func isOnQuarterHourForEveryQuarterMark(minute: Int) {
+        #expect(RenewalCalculator.isOnQuarterHour(osloDate(2026, 1, 15, 9, minute)))
+        #expect(RenewalCalculator.isOnQuarterHour(osloDate(2026, 7, 15, 23, minute)))
+        #expect(RenewalCalculator.isOnQuarterHour(zonedDate("Asia/Kathmandu", 2026, 1, 15, 3, minute)))
+    }
+
+    @Test func isOnQuarterHourIsFalseOffTheMark() {
+        let noon = osloDate(2026, 1, 15, 12, 0)
+        #expect(!RenewalCalculator.isOnQuarterHour(zonedDate("Europe/Oslo", 2026, 1, 15, 12, 0, 1)))
+        #expect(!RenewalCalculator.isOnQuarterHour(noon.addingTimeInterval(0.5)))
+        #expect(!RenewalCalculator.isOnQuarterHour(zonedDate("Europe/Oslo", 2026, 1, 15, 23, 1, 17)))
+        // Hele minutter mellom kvarterene teller heller ikke.
+        #expect(!RenewalCalculator.isOnQuarterHour(osloDate(2026, 1, 15, 12, 7)))
+    }
+
     @Test func reminderDateSubtractsDaysAndSetsHour() {
         let renewal = date(2026, 5, 15)
         let reminder = RenewalCalculator.reminderDate(

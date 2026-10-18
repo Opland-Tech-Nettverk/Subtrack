@@ -6,15 +6,22 @@ import Foundation
 /// da hverandres datoer frem og tilbake via iCloud i det uendelige. Nye datoer lagres
 /// allerede kl. 12 av skjemaet, så det er bare eldre data som trenger ryddingen.
 ///
+/// Datoer som allerede ligger kl. 12 i en eller annen tidssone, røres ikke (se
+/// `Subscription.normalizeStoredDates(calendar:)`). En enhet i en fjern tidssone flytter
+/// derfor ikke en dato som skjemaet eller en annen enhet har satt, til en annen dag, og bare
+/// den første enheten som ser en eldre dato, rydder den. Det å huske ryddede abonnement er
+/// dermed en ekstra sikring som også holder antall skrivinger til iCloud nede.
+///
 /// Hvert abonnement huskes for seg, ikke enheten som helhet: på en ny enhet kan CloudKit
 /// importere dataene litt etter litt, og en enhet med en eldre versjon av appen kan legge til
 /// abonnement med datoer nær midnatt. Begge deler kommer etter første rydding og skal også
 /// ryddes.
 ///
 /// Kjente begrensninger:
-/// - Enheten som rydder et abonnement først, bestemmer dagen. En enhet i en fjern tidssone
-///   som importerer allerede ryddede data før den rydder selv, kan skrive hver dato én gang
-///   til. Det skjer høyst én gang per abonnement per enhet og blir aldri en løkke.
+/// - Enheten som rydder en eldre dato først, bestemmer dagen. En dato registrert nær midnatt
+///   mens brukeren var på reise, kan derfor havne én dag feil.
+/// - Rydder to enheter samme dato før de har sett hverandres endring, vinner den siste
+///   skrivingen i iCloud. Begge resultatene ligger kl. 12, så ingen av dem ryddes på nytt.
 /// - Endrer en eldre versjon et abonnement som allerede er ryddet her, ryddes det ikke igjen
 ///   her. Den enheten rydder det selv når den oppdateres, siden den ikke har ryddet det før.
 enum StoredDateCleanup {
@@ -25,7 +32,8 @@ enum StoredDateCleanup {
     static let cleanedIDsKey = "StoredDateCleanup.v1CleanedIDs"
 
     /// Kjører `normalizeStoredDates(calendar:)` på hvert abonnement som ikke er ryddet på
-    /// denne enheten før. Returnerer `true` hvis minst ett abonnement ble ryddet nå.
+    /// denne enheten før. Returnerer `true` hvis minst ett abonnement ble merket som ryddet nå,
+    /// også om ingen av datoene måtte flyttes.
     @discardableResult
     static func runIfNeeded(
         for subscriptions: [Subscription],

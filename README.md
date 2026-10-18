@@ -166,7 +166,7 @@ Hvert abonnement har en ankerdato som fornyelsesrytmen regnes fra. Fornyelse num
 
 En dato lagres som et tidspunkt. En fornyelse registrert klokken 23:30 ville vist en annen dag i en annen tidssone, for eksempel på reise eller på en annen enhet via iCloud. Midt på dagen gir samme dato så lenge tidssonene ligger inntil 11 timer fra hverandre, og påvirkes ikke av sommertid, som skifter om natten.
 
-Eldre datoer med klokkeslett nær midnatt (før 06:00 eller fra 18:00) flyttes til 12:00 samme dag. Hver enhet rydder hvert abonnement bare én gang, og husker hvilke den har ryddet. Klokken 12 i én tidssone kan nemlig ligge nær midnatt i en tidssone langt unna, og uten denne grensen ville enhetene flyttet hverandres datoer frem og tilbake via iCloud. Opprydningen skriver bare når noe faktisk endres.
+Eldre datoer med klokkeslett nær midnatt (før 06:00 eller fra 18:00) flyttes til 12:00 samme dag. En dato som allerede står på 12:00 i en eller annen tidssone, kjennes igjen og flyttes aldri igjen på egen hånd. Alle tidssoner ligger et helt antall kvarter fra UTC, så en slik dato ligger nøyaktig på et kvarter, mens eldre datoer har vilkårlige klokkeslett. Dermed endrer ikke enheter i ulike tidssoner, selv langt fra hverandre, datoer som allerede er ryddet eller satt av skjemaet. Enheten som rydder en eldre dato først, bestemmer dagen. I tillegg husker hver enhet hvilke abonnement den har ryddet, og rydder hvert abonnement høyst én gang. Opprydningen skriver bare når noe faktisk endres.
 
 </details>
 
@@ -247,6 +247,7 @@ Subtrack/
 │   └── SubtrackSchema.swift             Versjonert skjema og migrasjonsplan
 ├── Services/
 │   ├── RenewalCalculator.swift          Kostnader, fornyelser, varseltidspunkter, besparelser
+│   ├── StoredDateCleanup.swift          Engangsrydding av eldre datoer nær midnatt
 │   ├── NotificationScheduler.swift      Planlegging av lokale varsler
 │   ├── ExchangeRateStore.swift          Henting og lagring av valutakurser
 │   ├── CurrencyConverter.swift          Omregning og støttede valutaer
@@ -269,9 +270,9 @@ SubtrackUITests/                         UI-tester (XCTest)
 ## Testing
 
 - **Enhetstester med Swift Testing** dekker logikken grundig: kostnader og deling, fornyelsesdatoer (blant annet at den 31. kommer tilbake etter februar), normalisering av datoer på tvers av tidssoner og sommertid, valg av varsler innenfor budsjettet, reservevarsler og at de ikke dobles, besparelser, sortering og søk, valutaomregning, tolking av priser og lenker, statistikk, widget-data (inkludert at JSON-formatet stemmer med det widgeten leser) og lagring av tekstkoder og eldre felt.
-- Testene bruker **faste kalendere og tidssoner** (blant annet UTC, Europe/Oslo og Europe/London), så resultatet ikke avhenger av hvor eller når de kjøres. Flere av dem er parameteriserte med en rekke inndata.
+- Testene er laget for å gi samme resultat uansett hvor og når de kjøres, og det meste av datologikken testes med **faste kalendere og tidssoner** (blant annet UTC, Europe/Oslo og Europe/London). Flere av dem er parameteriserte med en rekke inndata.
 - **UI-tester med XCTest** går gjennom hovedflytene slik en bruker opplever dem: tom start, legge til et abonnement og se det i sammendraget, validering i skjemaet og bekreftelse før endringer forkastes, avslutte og gjenoppta, søk og statistikk.
-- UI-testene starter appen med `-UITesting`. Da brukes en **tom database i minnet uten iCloud**, og varseldialogen hoppes over, så testene aldri rører ekte data.
+- UI-testene starter appen med `-UITesting`. Da brukes en **tom database i minnet uten iCloud**, og varseldialogen hoppes over. Varsler, widget og datoryddingen røres ikke, så testene aldri rører ekte data.
 
 ## Personvern
 
