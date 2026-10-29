@@ -18,6 +18,3 @@ build/
 # Swift Package Manager
 .build/
 .swiftpm/
-
-# Claude Code – lokale innstillinger og skills
-.claude/
