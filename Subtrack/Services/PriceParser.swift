@@ -8,7 +8,7 @@ import Foundation
 /// - Øvrige skilletegn er tusenskilletegn og må stå foran grupper på nøyaktig 3 siffer
 ///   ("1.234,50", "1,234.50", "12.345").
 /// - Alt annet, f.eks. bokstaver eller "1,2,3", gir `nil`.
-enum PriceParser {
+nonisolated enum PriceParser {
     static func parse(_ input: String) -> Decimal? {
         let cleaned = input.filter { !$0.isWhitespace }
         guard !cleaned.isEmpty,
