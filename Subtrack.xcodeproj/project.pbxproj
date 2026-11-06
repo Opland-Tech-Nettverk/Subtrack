@@ -7,12 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A794A2A309E7D37005C97C9 /* SubtrackShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0A794A20309E7D37005C97C9 /* SubtrackShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0AFF2E43307F97B900CE1C7A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0AFF2E42307F97B900CE1C7A /* WidgetKit.framework */; };
 		0AFF2E45307F97B900CE1C7A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0AFF2E44307F97B900CE1C7A /* SwiftUI.framework */; };
 		0AFF2E50307F97BA00CE1C7A /* SubtrackWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0AFF2E40307F97B900CE1C7A /* SubtrackWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		0A794A28309E7D37005C97C9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0A794A1F309E7D37005C97C9;
+			remoteInfo = SubtrackShare;
+		};
 		0ABD230F3082666600BC42DA /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 000000000000000000000000 /* Project object */;
@@ -43,6 +51,7 @@
 			dstSubfolder = PlugIns;
 			files = (
 				0AFF2E50307F97BA00CE1C7A /* SubtrackWidgetExtension.appex in Embed Foundation Extensions */,
+				0A794A2A309E7D37005C97C9 /* SubtrackShare.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 		};
@@ -50,6 +59,7 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Subtrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Subtrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0A794A20309E7D37005C97C9 /* SubtrackShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SubtrackShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0ABD230B3082666600BC42DA /* SubtrackUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SubtrackUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0ABE122D307E59BA00B9271D /* SubtrackTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SubtrackTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0AFF2E40307F97B900CE1C7A /* SubtrackWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SubtrackWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,6 +69,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0A794A2E309E7D37005C97C9 /* Exceptions for "SubtrackShare" folder in "SubtrackShare" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0A794A1F309E7D37005C97C9 /* SubtrackShare */;
+		};
 		0AFF2E54307F97BA00CE1C7A /* Exceptions for "SubtrackWidget" folder in "SubtrackWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -84,6 +101,14 @@
 			path = Subtrack;
 			sourceTree = "<group>";
 		};
+		0A794A21309E7D37005C97C9 /* SubtrackShare */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0A794A2E309E7D37005C97C9 /* Exceptions for "SubtrackShare" folder in "SubtrackShare" target */,
+			);
+			path = SubtrackShare;
+			sourceTree = "<group>";
+		};
 		0ABD230C3082666600BC42DA /* SubtrackUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SubtrackUITests;
@@ -106,6 +131,11 @@
 
 /* Begin PBXFrameworksBuildPhase section */
 		000000000000000130000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		0A794A1D309E7D37005C97C9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 			);
@@ -138,6 +168,7 @@
 				0ABE122E307E59BA00B9271D /* SubtrackTests */,
 				0AFF2E46307F97B900CE1C7A /* SubtrackWidget */,
 				0ABD230C3082666600BC42DA /* SubtrackUITests */,
+				0A794A21309E7D37005C97C9 /* SubtrackShare */,
 				0AFF2E41307F97B900CE1C7A /* Frameworks */,
 				000000000000000000000020 /* Products */,
 			);
@@ -150,6 +181,7 @@
 				0ABE122D307E59BA00B9271D /* SubtrackTests.xctest */,
 				0AFF2E40307F97B900CE1C7A /* SubtrackWidgetExtension.appex */,
 				0ABD230B3082666600BC42DA /* SubtrackUITests.xctest */,
+				0A794A20309E7D37005C97C9 /* SubtrackShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -179,6 +211,7 @@
 			);
 			dependencies = (
 				0AFF2E4F307F97BA00CE1C7A /* PBXTargetDependency */,
+				0A794A29309E7D37005C97C9 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* Subtrack */,
@@ -187,6 +220,24 @@
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* Subtrack.app */;
 			productType = "com.apple.product-type.application";
+		};
+		0A794A1F309E7D37005C97C9 /* SubtrackShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0A794A2D309E7D37005C97C9 /* Build configuration list for PBXNativeTarget "SubtrackShare" */;
+			buildPhases = (
+				0A794A1C309E7D37005C97C9 /* Sources */,
+				0A794A1D309E7D37005C97C9 /* Frameworks */,
+				0A794A1E309E7D37005C97C9 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				0A794A21309E7D37005C97C9 /* SubtrackShare */,
+			);
+			name = SubtrackShare;
+			productName = SubtrackShare;
+			productReference = 0A794A20309E7D37005C97C9 /* SubtrackShare.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		0ABD230A3082666600BC42DA /* SubtrackUITests */ = {
 			isa = PBXNativeTarget;
@@ -255,11 +306,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2700;
+				LastSwiftUpdateCheck = 2720;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					000000000000000100000000 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					0A794A1F309E7D37005C97C9 = {
+						CreatedOnToolsVersion = 27.2;
 					};
 					0ABD230A3082666600BC42DA = {
 						CreatedOnToolsVersion = 27.0;
@@ -292,12 +346,18 @@
 				0ABE122C307E59BA00B9271D /* SubtrackTests */,
 				0AFF2E3F307F97B900CE1C7A /* SubtrackWidgetExtension */,
 				0ABD230A3082666600BC42DA /* SubtrackUITests */,
+				0A794A1F309E7D37005C97C9 /* SubtrackShare */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		000000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		0A794A1E309E7D37005C97C9 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -325,6 +385,11 @@
 			files = (
 			);
 		};
+		0A794A1C309E7D37005C97C9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 		0ABD23073082666600BC42DA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
@@ -343,6 +408,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		0A794A29309E7D37005C97C9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0A794A1F309E7D37005C97C9 /* SubtrackShare */;
+			targetProxy = 0A794A28309E7D37005C97C9 /* PBXContainerItemProxy */;
+		};
 		0ABD23103082666600BC42DA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 000000000000000100000000 /* Subtrack */;
@@ -498,8 +568,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = AppIcon;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Subtrack/Subtrack.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 7;
@@ -545,8 +615,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphoneos*]" = AppIcon;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Subtrack/Subtrack.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 7;
@@ -584,6 +654,73 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		0A794A2B309E7D37005C97C9 /* Debug configuration for PBXNativeTarget "SubtrackShare" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SubtrackShare/SubtrackShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 76M3G78HV8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SubtrackShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SubtrackShare;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.opland.subtrack.SubtrackShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		0A794A2C309E7D37005C97C9 /* Release configuration for PBXNativeTarget "SubtrackShare" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SubtrackShare/SubtrackShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 76M3G78HV8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SubtrackShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SubtrackShare;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.opland.subtrack.SubtrackShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -784,6 +921,14 @@
 			buildConfigurations = (
 				000000000000000111000000 /* Debug configuration for PBXNativeTarget "Subtrack" */,
 				000000000000000112000000 /* Release configuration for PBXNativeTarget "Subtrack" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		0A794A2D309E7D37005C97C9 /* Build configuration list for PBXNativeTarget "SubtrackShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A794A2B309E7D37005C97C9 /* Debug configuration for PBXNativeTarget "SubtrackShare" */,
+				0A794A2C309E7D37005C97C9 /* Release configuration for PBXNativeTarget "SubtrackShare" */,
 			);
 			defaultConfigurationName = Release;
 		};
