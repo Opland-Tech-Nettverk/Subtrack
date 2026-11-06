@@ -5,6 +5,14 @@ import UIKit
 /// Utvidelsen åpner aldri databasen og lagrer aldri bildet eller PDF-en: den henter ut teksten og legger den
 /// som en fil i innboksen i App Group-mappen, som appen leser neste gang den blir aktiv.
 final class ShareViewController: UIViewController {
+    private var model: ShareViewModel?
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // Sveip ned mens kvitteringen leses: da kommer verken Ferdig eller Avbryt.
+        model?.cancelIfReading()
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -20,6 +28,7 @@ final class ShareViewController: UIViewController {
             }
         )
 
+        self.model = model
         let host = UIHostingController(rootView: ShareView(model: model))
         addChild(host)
         host.view.translatesAutoresizingMaskIntoConstraints = false

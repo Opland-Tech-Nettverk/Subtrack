@@ -22,6 +22,10 @@ nonisolated enum ReceiptShareSource {
         return nil
     }
 
+    private static func isLink(_ identifier: String) -> Bool {
+        UTType(identifier)?.conforms(to: .url) ?? false
+    }
+
     /// Alt som kan leses, i den rekkefølgen det skal prøves: PDF, så bilde, så tekst. Teksten kommer sist fordi den
     /// ofte bare er en tittel som følger med filen (en nettleser eller bankapp deler «Kvittering 123» sammen med PDF-en).
     /// Innen samme slag kommer det første vedlegget først. Utvidelsen bruker den første som gir tekst.
@@ -30,6 +34,8 @@ nonisolated enum ReceiptShareSource {
         var result: [Choice] = []
         for wanted in [ReceiptInboxKind.pdf, .image, .text] {
             for (index, identifiers) in providers.enumerated() {
+                // En lenke registrerer ofte også ren tekst (adressen), men er ikke en kvittering.
+                if wanted == .text, identifiers.contains(where: isLink) { continue }
                 if let identifier = identifiers.first(where: { kind(forTypeIdentifier: $0) == wanted }) {
                     result.append(Choice(index: index, kind: wanted, typeIdentifier: identifier))
                 }

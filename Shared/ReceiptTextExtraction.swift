@@ -79,8 +79,12 @@ nonisolated enum ReceiptTextExtraction {
         ) else { return nil }
         context.setFillColor(CGColor(gray: 1, alpha: 1))
         context.fill(rect)
-        // Et CGContext har origo nede til venstre, som PDF, så siden trenger bare tilpasning til størrelsen.
-        context.concatenate(pdfPage.getDrawingTransform(.mediaBox, rect: rect, rotate: 0, preserveAspectRatio: true))
+        // Et CGContext har origo nede til venstre, som PDF. Konteksten skaleres først (her ligger skalaen, ofte 2,6),
+        // og siden tegnes så 1:1 på et rektangel i punkter. `getDrawingTransform` skalerer bare ned, aldri opp,
+        // så den får ikke ansvaret for størrelsen, bare for sidens rotasjon.
+        context.scaleBy(x: scale, y: scale)
+        let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
+        context.concatenate(pdfPage.getDrawingTransform(.mediaBox, rect: pageRect, rotate: 0, preserveAspectRatio: true))
         context.drawPDFPage(pdfPage)
         return context.makeImage()
     }

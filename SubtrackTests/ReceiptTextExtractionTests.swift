@@ -201,6 +201,81 @@ struct ReceiptTextExtractionTests {
         #expect(image.width * image.height <= ReceiptTextExtraction.maxImagePixels)
     }
 
+    /// Rammen rundt de mørke pikslene i bildet, i piksler.
+    private func darkBounds(of image: CGImage) throws -> CGRect {
+        let width = image.width
+        let height = image.height
+        // Tegner om til 8 bit gråtone, så testen ikke avhenger av hvordan bildet er lagret.
+        var pixels = [UInt8](repeating: 255, count: width * height)
+        let drew = pixels.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+                space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ) else { return false }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        try #require(drew)
+
+        var minX = width, maxX = -1, minY = height, maxY = -1
+        for y in 0..<height {
+            for x in 0..<width where pixels[y * width + x] < 128 {
+                minX = min(minX, x)
+                maxX = max(maxX, x)
+                minY = min(minY, y)
+                maxY = max(maxY, y)
+            }
+        }
+        try #require(maxX >= minX, "Fant ingen mørke piksler")
+        return CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
+    }
+
+    @Test func thePageContentIsEnlargedAndNotJustTheBitmap() throws {
+        // En svart firkant på 100 x 100 punkter på en side som er 612 punkter bred. Med 1 600 piksler i bredden er
+        // skalaen 2,61, så firkanten skal bli ca. 261 piksler. Tegnes siden 1:1 midt i bildet (slik
+        // `getDrawingTransform` alene gjør, siden den aldri forstørrer), blir den 100 piksler, og OCR av
+        // 10 punkters tekst blir for liten til å leses.
+        let url = temporaryURL("pdf")
+        defer { try? fileManager.removeItem(at: url) }
+        try UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)).writePDF(to: url) { context in
+            context.beginPage()
+            UIColor.black.setFill()
+            UIRectFill(CGRect(x: 10, y: 10, width: 100, height: 100))
+        }
+
+        let image = try #require(ReceiptTextExtraction.firstPageImage(try firstPage(ofPDFAt: url)))
+        let square = try darkBounds(of: image)
+
+        let expected = 100.0 * Double(ReceiptTextExtraction.pdfOCRWidth) / 612.0
+        #expect(abs(square.width - expected) <= 3, "Firkanten er \(square.width) piksler bred, forventet ca. \(expected)")
+        #expect(abs(square.height - expected) <= 3)
+        // Plasseringen er skalert også: 10 punkter fra kanten blir ca. 26 piksler, og toppen av siden er øverst.
+        #expect(abs(square.minX - 10.0 * Double(ReceiptTextExtraction.pdfOCRWidth) / 612.0) <= 3)
+        #expect(abs(square.minY - 10.0 * Double(ReceiptTextExtraction.pdfOCRWidth) / 612.0) <= 3)
+    }
+
+    @Test func tenPointTextOnAPageIsReadWithOCR() throws {
+        let url = temporaryURL("pdf")
+        defer { try? fileManager.removeItem(at: url) }
+        try UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)).writePDF(to: url) { context in
+            context.beginPage()
+            let font = UIFont.systemFont(ofSize: 10)
+            let lines = ["Netflix kvittering", "Abonnement Standard", "Totalt 149,00 kr"]
+            for (index, line) in lines.enumerated() {
+                (line as NSString).draw(
+                    at: CGPoint(x: 50, y: 60 + CGFloat(index) * 16),
+                    withAttributes: [.font: font, .foregroundColor: UIColor.black]
+                )
+            }
+        }
+
+        let image = try #require(ReceiptTextExtraction.firstPageImage(try firstPage(ofPDFAt: url)))
+        let text = try #require(ReceiptTextExtraction.recognizeText(in: image))
+
+        #expect(text.localizedCaseInsensitiveContains("Netflix"))
+        #expect(text.contains("149"))
+    }
+
     @Test func aVeryTallPageStaysWithinThePixelBudget() throws {
         let url = temporaryURL("pdf")
         defer { try? fileManager.removeItem(at: url) }

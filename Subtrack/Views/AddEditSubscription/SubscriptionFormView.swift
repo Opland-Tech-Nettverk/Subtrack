@@ -617,6 +617,9 @@ struct SubscriptionFormView: View {
         }
         saveFeedbackTrigger += 1
         if subscriptionToEdit == nil {
+            // Til disk før kvitteringsfilen slettes: autolagring kan ta et par sekunder, og dør appen i mellomtiden,
+            // er både abonnementet og kvitteringen borte.
+            try? modelContext.save()
             onSaved?()
         }
         dismiss()

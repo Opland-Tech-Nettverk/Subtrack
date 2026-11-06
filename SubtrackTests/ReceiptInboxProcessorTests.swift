@@ -189,6 +189,26 @@ struct ReceiptInboxProcessorTests {
         #expect(remaining.map(\.item.text) == ["venter"])
     }
 
+    @Test func finishingTheSameDraftTwiceIsHarmless() async throws {
+        // Skjemaet kaller `finish` når det lagres, og arket kaller den igjen når det er helt lukket.
+        let inbox = makeInbox()
+        defer { cleanUp(inbox) }
+        try inbox.write(text: "kvittering", kind: .text)
+        try inbox.write(text: "venter", kind: .text, now: Date().addingTimeInterval(10))
+        let router = AddSubscriptionRouter()
+        let processor = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await DraftCounter().draft(for: $0) }, router: router)
+        #expect(await processor.processInbox() == 2)
+        let first = try #require(router.dequeue())
+
+        processor.finish(first)
+        processor.finish(first)
+
+        // Utkastet som fortsatt står i køen, berøres ikke.
+        #expect(files(in: inbox).count == 1)
+        #expect(router.pendingDrafts.count == 1)
+        #expect(inbox.entries().map(\.item.text) == ["venter"])
+    }
+
     @Test func finishingADraftThatDidNotComeFromTheInboxDeletesNothing() async throws {
         let inbox = makeInbox()
         defer { cleanUp(inbox) }

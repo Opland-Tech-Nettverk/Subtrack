@@ -16,8 +16,18 @@
         ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "com.adobe.pdf"
         OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.image"
         OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text"
+        OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url"
     ).@count == $extensionItem.attachments.@count
-    AND $extensionItem.attachments.@count &gt;= 1
+    AND SUBQUERY (
+        $extensionItem.attachments,
+        $attachment,
+        ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "com.adobe.pdf"
+        OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.image"
+        OR (
+            ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text"
+            AND NOT (ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url")
+        )
+    ).@count &gt;= 1
     AND SUBQUERY (
         $extensionItem.attachments,
         $attachment,

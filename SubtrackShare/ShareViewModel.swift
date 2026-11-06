@@ -45,6 +45,13 @@ final class ShareViewModel {
         cancelRequest()
     }
 
+    /// Skjermen forsvant (brukeren sveipet den ned) mens kvitteringen fortsatt ble lest: avbryt arbeidet og
+    /// forespørselen, så verten får beskjed og ingenting skrives til innboksen.
+    func cancelIfReading() {
+        guard state == .reading else { return }
+        cancel()
+    }
+
     /// Kjøres én gang når skjermen vises.
     func start() async {
         guard !hasStarted else { return }

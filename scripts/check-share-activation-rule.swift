@@ -60,9 +60,23 @@ let cases: [(String, [[[String]]], Bool)] = [
     ("zip", [[["public.zip-archive"]]], false),
     ("word document", [[["org.openxmlformats.wordprocessingml.document"]]], false),
     ("web page url", [[["public.url"]]], false),
-    ("text with url (shared web page)", [[[text], ["public.url"]]], false),
     ("pdf with a zip", [[[pdf], ["public.zip-archive"]]], false),
     ("movie", [[["public.movie"]]], false),
+    // A supported item shared together with a link (receipt and link from a bank or webshop app) still activates.
+    ("text and a link", [[[text], ["public.url"]]], true),
+    ("pdf and a link", [[[pdf], ["public.url"]]], true),
+    ("image and a link", [[[png], ["public.url"]]], true),
+    ("text, image and a link", [[[text], [jpeg], ["public.url"]]], true),
+    // A link alone, or a web page, does not.
+    ("link alone", [[["public.url"]]], false),
+    // Files and Photos may register a file URL next to the real type; that must not hide the extension.
+    ("pdf that also registers a file url", [[[pdf, "public.file-url"]]], true),
+    ("image that also registers a file url", [[[png, "public.file-url"]]], true),
+    ("two links", [[["public.url"], ["public.url"]]], false),
+    ("web page: one attachment that is both a url and text", [[["public.url", text]]], false),
+    ("web page with a preview", [[["public.url"], ["com.apple.property-list"]]], false),
+    ("pdf, a link and a zip", [[[pdf], ["public.url"], ["public.zip-archive"]]], false),
+    ("two pdfs and a link", [[[pdf], [pdf], ["public.url"]]], false),
     ("no attachments", [[]], false),
     ("no items", [], false),
     ("two items", [[[pdf]], [[pdf]]], false)
