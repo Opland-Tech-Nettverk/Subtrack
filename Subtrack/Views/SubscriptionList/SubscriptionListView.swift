@@ -17,7 +17,10 @@ struct SubscriptionListView: View {
     @State private var editingSubscription: Subscription?
     @State private var isAddingSubscription = false
     @State private var isShowingSettings = false
+    /// Abonnementet som vises på detaljsiden.
+    @State private var selectedSubscription: Subscription?
     @State private var isImportingStatement = false
+    @State private var isShowingReceiptHelp = false
     /// Utkastet fra `AddSubscriptionRouter` som vises i skjemaet nå, f.eks. fra snarveien.
     @State private var presentedDraft: SubscriptionDraft?
     /// Om oversikten er fanen som vises. Et utkast vises ikke fra en skjult fane; da venter
@@ -63,8 +66,8 @@ struct SubscriptionListView: View {
     /// Et ark herfra er åpent. Et nytt utkast venter da til arket er lukket, så det brukeren
     /// holder på med, aldri blir erstattet.
     private var isShowingSheet: Bool {
-        isAddingSubscription || editingSubscription != nil || isShowingSettings || isImportingStatement
-            || presentedDraft != nil
+        isAddingSubscription || editingSubscription != nil || isShowingSettings || presentedDraft != nil
+            || isImportingStatement || isShowingReceiptHelp
     }
 
     private var isSearching: Bool {
@@ -88,22 +91,66 @@ struct SubscriptionListView: View {
         }
     }
 
-    /// Ved sortering på kategori får hver kategori sin egen seksjon; ellers én felles.
-    private var sections: [(title: String, subscriptions: [Subscription])] {
+    /// En seksjon i listen. `trailing` er en valgfri sum til høyre i overskriften.
+    private struct ListSection: Identifiable {
+        let title: String
+        var trailing: String? = nil
+        var subscriptions: [Subscription]
+
+        var id: String { title }
+    }
+
+    /// Sortert på neste fornyelse grupperes listen i Denne uka, Denne måneden, Senere og Pauset.
+    /// Ved sortering på kategori får hver kategori sin egen seksjon; ellers er det én felles.
+    private var sections: [ListSection] {
         let visible = visibleSubscriptions
-        guard sortOrder == .category else {
-            return visible.isEmpty ? [] : [("Abonnementer", visible)]
-        }
-        var result: [(title: String, subscriptions: [Subscription])] = []
-        for subscription in visible {
-            let title = subscription.kind.displayName
-            if result.last?.title == title {
-                result[result.count - 1].subscriptions.append(subscription)
-            } else {
-                result.append((title, [subscription]))
+        switch sortOrder {
+        case .renewal:
+            return RenewalGrouping.sections(visible).map { section in
+                ListSection(
+                    title: section.group.title,
+                    trailing: upcomingTotalText(for: section),
+                    subscriptions: section.subscriptions
+                )
             }
+        case .category:
+            var result: [ListSection] = []
+            for subscription in visible {
+                let title = subscription.kind.displayName
+                if result.last?.title == title {
+                    result[result.count - 1].subscriptions.append(subscription)
+                } else {
+                    result.append(ListSection(title: title, subscriptions: [subscription]))
+                }
+            }
+            return result
+        case .price, .name:
+            return visible.isEmpty ? [] : [ListSection(title: "Abonnementer", subscriptions: visible)]
         }
-        return result
+    }
+
+    /// Hva som trekkes i en gruppe, for denne uka og denne måneden. Pauset og «Senere» har ingen sum.
+    private func upcomingTotalText(for section: RenewalGroupSection) -> String? {
+        guard section.group == .thisWeek || section.group == .thisMonth else { return nil }
+        let total = CurrencyConverter.total(
+            of: section.subscriptions.map { ($0.myShare, $0.currencyCode) },
+            in: mainCurrency,
+            using: exchangeRates.rates
+        ).amount
+        return total > 0 ? Money.string(total, code: mainCurrency, whole: true) : nil
+    }
+
+    /// «≈ 215 kr» for abonnement i en annen valuta enn hovedvalutaen, når kursen er kjent.
+    private func approximateText(for subscription: Subscription) -> String? {
+        guard subscription.currencyCode != mainCurrency,
+              let converted = CurrencyConverter.convert(
+                  subscription.myShare,
+                  from: subscription.currencyCode,
+                  to: mainCurrency,
+                  using: exchangeRates.rates
+              )
+        else { return nil }
+        return "≈ \(Money.string(converted, code: mainCurrency, whole: true))"
     }
 
     private var totalSaved: Decimal {
@@ -118,12 +165,25 @@ struct SubscriptionListView: View {
         NavigationStack {
             Group {
                 if subscriptions.isEmpty {
-                    EmptyStateView()
+                    OnboardingView(
+                        addManually: { isAddingSubscription = true },
+                        importStatement: { isImportingStatement = true },
+                        shareReceipt: { isShowingReceiptHelp = true }
+                    )
                 } else {
                     list
                 }
             }
+            .background(Color.canvas)
             .navigationTitle("Subtrack")
+            .navigationDestination(item: $selectedSubscription) { subscription in
+                SubscriptionDetailView(
+                    subscription: subscription,
+                    onEdit: { editingSubscription = subscription },
+                    onTogglePause: { togglePause(subscription) },
+                    onArchive: { archive(subscription) }
+                )
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -139,20 +199,25 @@ struct SubscriptionListView: View {
                                 Label(order.displayName, systemImage: order.symbolName).tag(order)
                             }
                         }
-                        Divider()
+                    } label: {
+                        Label("Sorter", systemImage: "arrow.up.arrow.down")
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    // Legg til selv, eller finn abonnementene i en kontoutskrift.
+                    Menu {
+                        Button {
+                            isAddingSubscription = true
+                        } label: {
+                            Label("Legg til selv", systemImage: "square.and.pencil")
+                        }
+                        .accessibilityIdentifier("addManually")
                         Button {
                             isImportingStatement = true
                         } label: {
                             Label("Importer fra kontoutskrift", systemImage: "doc.text.magnifyingglass")
                         }
                         .accessibilityIdentifier("importStatement")
-                    } label: {
-                        Label("Sorter", systemImage: "arrow.up.arrow.down")
-                    }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isAddingSubscription = true
                     } label: {
                         Label("Legg til", systemImage: "plus")
                     }
@@ -175,6 +240,9 @@ struct SubscriptionListView: View {
             .sheet(isPresented: $isImportingStatement, onDismiss: presentNextDraft) {
                 StatementImportView()
             }
+            .sheet(isPresented: $isShowingReceiptHelp, onDismiss: presentNextDraft) {
+                ShareReceiptHelpView()
+            }
             .sensoryFeedback(.impact(weight: .light), trigger: pauseFeedbackTrigger)
             .sensoryFeedback(.impact(weight: .medium), trigger: archiveFeedbackTrigger)
         }
@@ -194,6 +262,13 @@ struct SubscriptionListView: View {
         .onAppear {
             isOnScreen = true
             presentNextDraft()
+            // Skjermbilder i CI (bare demomodus): åpner detaljsiden direkte.
+            if DemoLaunch.opensImport {
+                isImportingStatement = true
+            }
+            if DemoLaunch.opensDetail, selectedSubscription == nil {
+                selectedSubscription = subscriptions.first { $0.name == "Netflix" }
+            }
         }
         .onDisappear {
             isOnScreen = false
@@ -208,21 +283,31 @@ struct SubscriptionListView: View {
     }
 
     private var list: some View {
+        ScrollViewReader { proxy in
+            listContent
+                .task { await DemoLaunch.scroll(proxy) }
+        }
+    }
+
+    private var listContent: some View {
         List {
             if !isSearching {
                 Section {
                     SummaryHeaderView(subscriptions: subscriptions)
                         .accessibilityIdentifier("summary")
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
+                        .bareRowStyle()
+                    UpcomingStripView(subscriptions: subscriptions)
+                        .bareRowStyle()
                 }
             }
 
-            ForEach(sections, id: \.title) { section in
-                Section(section.title) {
+            ForEach(sections) { section in
+                Section {
                     ForEach(section.subscriptions) { subscription in
                         row(for: subscription)
                     }
+                } header: {
+                    SectionTitle(title: section.title, trailing: section.trailing)
                 }
             }
 
@@ -231,16 +316,16 @@ struct SubscriptionListView: View {
                     NavigationLink {
                         ArchivedSubscriptionsView()
                     } label: {
-                        LabeledContent {
-                            Text("spart \(totalSaved.formatted(.currency(code: mainCurrency)))")
-                                .foregroundStyle(Color.savings)
-                        } label: {
-                            Label("Avsluttede (\(archivedSubscriptions.count))", systemImage: "archivebox")
-                        }
+                        archiveLabel
                     }
+                    .cardRowStyle()
+                    .id("end")
                 }
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .listSectionSpacing(14)
         .readableContentWidth()
         .searchable(text: $searchText, prompt: "Søk i navn eller kategori")
         .overlay {
@@ -256,18 +341,33 @@ struct SubscriptionListView: View {
         .animation(.smooth, value: sortOrder)
     }
 
+    private var archiveLabel: some View {
+        HStack(spacing: 12) {
+            SubscriptionTile(symbolName: "archivebox", color: .gray, size: 36)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Avsluttede (\(archivedSubscriptions.count))")
+                    .font(.body.weight(.semibold))
+                Text("spart \(Money.string(totalSaved, code: mainCurrency, whole: true))")
+                    .font(.amount(.subheadline, weight: .medium))
+                    .foregroundStyle(Color.savings)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
     private func row(for subscription: Subscription) -> some View {
         // En ekte knapp, så VoiceOver sier «knapp» og raden markeres når man trykker.
         Button {
-            editingSubscription = subscription
+            selectedSubscription = subscription
         } label: {
-            SubscriptionRow(subscription: subscription)
+            SubscriptionRow(subscription: subscription, approximateText: approximateText(for: subscription))
                 // Ellers farger knappen navnet med aksentfargen; raden skal se ut som før.
                 // `Color.primary` og ikke `.primary`, som er hierarkisk og kan arve knappens farge.
                 .foregroundStyle(Color.primary)
         }
+        .cardRowStyle()
         .accessibilityIdentifier("subscription.\(subscription.name)")
-        .accessibilityHint("Åpner abonnementet for redigering.")
+        .accessibilityHint("Åpner detaljene til abonnementet.")
         // Ingen full sveip: Avslutt skal ikke skje ved et uhell, bare ved trykk på knappen.
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             // Avslutt flytter til arkivet i stedet for å slette, så det kan angres
@@ -281,7 +381,7 @@ struct SubscriptionListView: View {
             Button("Rediger") {
                 editingSubscription = subscription
             }
-            .tint(.blue)
+            .tint(Color.accentColor)
         }
         .swipeActions(edge: .leading) {
             Button(subscription.isActive ? "Pause" : "Gjenoppta") {

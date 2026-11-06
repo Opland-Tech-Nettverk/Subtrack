@@ -1,8 +1,9 @@
 name: iOS
 
-# Builds the app and the widget for the iOS simulator and runs the unit tests (SubtrackTests)
-# on a macOS runner. Unsigned simulator build: no certificates or secrets are needed. UI tests
-# (SubtrackUITests) are not run here.
+# Builds the app and the widget for the iOS simulator (Debug and Release) and runs the unit tests
+# (SubtrackTests) on a macOS runner. Unsigned simulator build: no certificates or secrets are needed.
+# Two more jobs run in parallel: screenshots of the main screens with demo data (the app's DEBUG-only
+# -DemoData launch argument), uploaded as an artifact, and the main UI flows (SubtrackUITests).
 
 on:
   push:
@@ -43,11 +44,22 @@ jobs:
         run: xcodebuild -list -project Subtrack.xcodeproj
 
       # Building the app scheme also builds and embeds the widget extension.
-      - name: Build app and widget for the iOS simulator
+      - name: Build app and widget for the iOS simulator (Debug)
         run: |
           xcodebuild build \
             -project Subtrack.xcodeproj \
             -scheme Subtrack \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
+
+      # Release compiles without the DEBUG-only demo code, so this catches code that only builds in Debug.
+      - name: Build app and widget for the iOS simulator (Release)
+        run: |
+          xcodebuild build \
+            -project Subtrack.xcodeproj \
+            -scheme Subtrack \
+            -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO
 
@@ -64,18 +76,208 @@ jobs:
               version = tuple(int(p) for p in runtime.rsplit("iOS-", 1)[-1].split("-") if p.isdigit())
               for d in devices:
                   if d["name"].startswith("iPhone") and d.get("isAvailable", True):
-                      if best is None or version > best[0]:
-                          best = (version, d["udid"], d["name"])
+                      # Newest iOS first, then a plain "Pro" model (not Max, Duo or other odd shapes).
+                      name = d["name"]
+                      odd = any(word in name for word in ("Duo", "Fold", "Flip", "Max", "Plus", "mini", "SE", "Air"))
+                      score = (version, 2 if "Pro" in name and not odd else (1 if not odd else 0), name)
+                      if best is None or score > best[0]:
+                          best = (score, d["udid"], d["name"])
           print(best[1])
+          print(best, file=sys.stderr)
           ')
           echo "Simulator: $UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
       - name: Run unit tests
         run: |
+          rm -rf "$RUNNER_TEMP/unit.xcresult"
           xcodebuild test \
             -project Subtrack.xcodeproj \
             -scheme Subtrack \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:SubtrackTests \
+            -resultBundlePath "$RUNNER_TEMP/unit.xcresult" \
             CODE_SIGNING_ALLOWED=NO
+
+      # Swift Testing failures are not in the xcodebuild log, so list them from the result bundle.
+      - name: Show unit test failures
+        if: failure()
+        run: |
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/unit.xcresult" --compact || true
+
+  # Screenshots of the main screens, from the Debug build's demo launch arguments (see
+  # App/DemoData.swift): made-up Norwegian subscriptions, in memory, no network. Dark and light,
+  # plus an accessibility text size. For checking the design without a Mac.
+  screenshots:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode 27
+        run: |
+          XCODE=$(for x in /Applications/Xcode_27*.app; do realpath "$x"; done 2>/dev/null \
+            | grep -viE 'beta|release_candidate' | sort -uV | tail -1)
+          [ -n "$XCODE" ] || XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then
+            echo "::error::No Xcode 27 on this runner. Installed:"; ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Build the Debug app for the iOS simulator
+        run: |
+          xcodebuild build \
+            -project Subtrack.xcodeproj \
+            -scheme Subtrack \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO
+
+      # The image only lists "iPhone Duo" (two displays) as an iPhone, so make a normal phone for
+      # realistic screenshots: the newest plain "iPhone NN Pro" type on the newest iOS runtime.
+      - name: Create a phone simulator
+        id: sim
+        run: |
+          xcrun simctl list devicetypes
+          RUNTIME=$(xcrun simctl list runtimes -j | python3 -c '
+          import json, sys
+          import re
+          runtimes = [r for r in json.load(sys.stdin)["runtimes"] if "iOS" in r.get("name", "iOS") and r.get("isAvailable", True)]
+          # Skip runtimes built for one device family only (identifiers ending in e.g. -iPhone19-4).
+          runtimes = [r for r in runtimes if re.search(r"iOS-[0-9]+-[0-9]+$", r["identifier"])] or runtimes
+          runtimes.sort(key=lambda r: tuple(int(p) for p in r["version"].split(".") if p.isdigit()))
+          print(runtimes[-1]["identifier"])
+          ')
+          TYPE=$(xcrun simctl list devicetypes -j | python3 -c '
+          import json, re, sys
+          names = {t["name"]: t["identifier"] for t in json.load(sys.stdin)["devicetypes"]}
+          pros = sorted((n for n in names if re.fullmatch(r"iPhone \d+ Pro", n)), key=lambda n: int(n.split()[1]))
+          plain = sorted((n for n in names if re.fullmatch(r"iPhone \d+", n)), key=lambda n: int(n.split()[1]))
+          choice = (pros or plain or [""])[-1]
+          print(names.get(choice, ""))
+          ')
+          echo "Runtime: $RUNTIME, device type: $TYPE"
+          UDID=$(xcrun simctl create "Subtrack Shots" "$TYPE" "$RUNTIME")
+          echo "Simulator: $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Take screenshots in the simulator
+        run: |
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/Subtrack.app"
+          OUT="$GITHUB_WORKSPACE/screenshots"
+          UDID="${{ steps.sim.outputs.udid }}"
+          mkdir -p "$OUT"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+          xcrun simctl install "$UDID" "$APP"
+          shoot() { # name appearance content-size screen [scroll-id]
+            xcrun simctl ui "$UDID" appearance "$2"
+            xcrun simctl ui "$UDID" content_size "$3"
+            xcrun simctl terminate "$UDID" com.opland.subtrack >/dev/null 2>&1 || true
+            if [ -n "$5" ]; then SCROLL=(-DemoScroll "$5"); else SCROLL=(); fi
+            xcrun simctl launch "$UDID" com.opland.subtrack \
+              -UITesting -DemoData -DemoScreen "$4" "${SCROLL[@]}" \
+              -sortOrder renewal -AppleLanguages "(nb)" -AppleLocale nb_NO
+            sleep 6
+            xcrun simctl io "$UDID" screenshot "$OUT/$1.png"
+            echo "shot $1"
+          }
+          for mode in dark light; do
+            shoot "oversikt-$mode" "$mode" large overview
+            shoot "oversikt-dag-$mode" "$mode" large overview-day
+            shoot "oversikt-liste-$mode" "$mode" large overview end
+            shoot "detalj-$mode" "$mode" large detail
+            shoot "detalj-nede-$mode" "$mode" large detail end
+            shoot "kalender-$mode" "$mode" large calendar
+            shoot "kalender-tidslinje-$mode" "$mode" large calendar timeline
+            shoot "statistikk-$mode" "$mode" large statistics
+            shoot "statistikk-kategori-$mode" "$mode" large statistics-category
+            shoot "statistikk-dyreste-$mode" "$mode" large statistics expensive
+            shoot "statistikk-framover-$mode" "$mode" large statistics end
+            shoot "tom-tilstand-$mode" "$mode" large empty
+            shoot "import-forklaring-$mode" "$mode" large import-intro
+            shoot "import-forslag-$mode" "$mode" large import-review
+          done
+          for screen in overview detail calendar statistics empty; do
+            shoot "storTekst-$screen" light accessibility-extra-large "$screen"
+          done
+          shoot "import-leser-lys" light large import-loading
+          shoot "storTekst-import-forslag" light accessibility-extra-large import-review
+          shoot "storTekst-oversikt-liste" light accessibility-extra-large overview end
+          shoot "storTekst-statistikk-dyreste" light accessibility-extra-large statistics expensive
+          ls -la "$OUT"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots
+          path: screenshots
+          if-no-files-found: warn
+
+  # The main UI flows (SubtrackUITests). Not blocking yet: they have not run in CI before.
+  ui-tests:
+    runs-on: xcode-27
+    timeout-minutes: 40
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode 27
+        run: |
+          XCODE=$(for x in /Applications/Xcode_27*.app; do realpath "$x"; done 2>/dev/null \
+            | grep -viE 'beta|release_candidate' | sort -uV | tail -1)
+          [ -n "$XCODE" ] || XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then
+            echo "::error::No Xcode 27 on this runner. Installed:"; ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+      # The image only lists "iPhone Duo" (two displays) as an iPhone, so make a normal phone for
+      # realistic screenshots: the newest plain "iPhone NN Pro" type on the newest iOS runtime.
+      - name: Create a phone simulator
+        id: sim
+        run: |
+          xcrun simctl list devicetypes
+          RUNTIME=$(xcrun simctl list runtimes -j | python3 -c '
+          import json, sys
+          import re
+          runtimes = [r for r in json.load(sys.stdin)["runtimes"] if "iOS" in r.get("name", "iOS") and r.get("isAvailable", True)]
+          # Skip runtimes built for one device family only (identifiers ending in e.g. -iPhone19-4).
+          runtimes = [r for r in runtimes if re.search(r"iOS-[0-9]+-[0-9]+$", r["identifier"])] or runtimes
+          runtimes.sort(key=lambda r: tuple(int(p) for p in r["version"].split(".") if p.isdigit()))
+          print(runtimes[-1]["identifier"])
+          ')
+          TYPE=$(xcrun simctl list devicetypes -j | python3 -c '
+          import json, re, sys
+          names = {t["name"]: t["identifier"] for t in json.load(sys.stdin)["devicetypes"]}
+          pros = sorted((n for n in names if re.fullmatch(r"iPhone \d+ Pro", n)), key=lambda n: int(n.split()[1]))
+          plain = sorted((n for n in names if re.fullmatch(r"iPhone \d+", n)), key=lambda n: int(n.split()[1]))
+          choice = (pros or plain or [""])[-1]
+          print(names.get(choice, ""))
+          ')
+          echo "Runtime: $RUNTIME, device type: $TYPE"
+          UDID=$(xcrun simctl create "Subtrack Shots" "$TYPE" "$RUNTIME")
+          echo "Simulator: $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Run UI tests
+        run: |
+          rm -rf "$RUNNER_TEMP/ui.xcresult"
+          xcodebuild test \
+            -project Subtrack.xcodeproj \
+            -scheme Subtrack \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:SubtrackUITests \
+            -resultBundlePath "$RUNNER_TEMP/ui.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Show UI test failures
+        if: failure()
+        run: |
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/ui.xcresult" --compact || true

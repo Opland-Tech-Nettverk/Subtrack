@@ -70,7 +70,13 @@ struct SubtrackApp: App {
     private static func makeModelContainer() -> (container: ModelContainer, state: DatabaseState) {
         // UI-tester starter med en tom database i minnet, så de aldri rører ekte data eller iCloud.
         if AppEnvironment.isUITesting {
-            return (makeInMemoryContainer(), .normal)
+            let container = makeInMemoryContainer()
+            #if DEBUG
+            if AppEnvironment.isDemo, DemoLaunch.screen != "empty" {
+                DemoData.seed(into: container.mainContext)
+            }
+            #endif
+            return (container, .normal)
         }
 
         // Synkroniserer automatisk med iCloud når appen har iCloud/CloudKit-capability:
@@ -132,4 +138,14 @@ enum DatabaseState {
 enum AppEnvironment {
     /// Satt av UI-testene med oppstartsparameteren `-UITesting`.
     nonisolated static let isUITesting = ProcessInfo.processInfo.arguments.contains("-UITesting")
+
+    /// Satt med `-UITesting -DemoData`: appen starter med eksempeldata, for skjermbilder i CI.
+    /// Finnes bare i DEBUG; i en release-bygg er den alltid `false`.
+    nonisolated static let isDemo: Bool = {
+        #if DEBUG
+        return AppEnvironment.isUITesting && ProcessInfo.processInfo.arguments.contains("-DemoData")
+        #else
+        return false
+        #endif
+    }()
 }

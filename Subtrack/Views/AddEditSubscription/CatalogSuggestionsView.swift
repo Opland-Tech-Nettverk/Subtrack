@@ -52,7 +52,7 @@ private struct CatalogSuggestionRow: View {
     var body: some View {
         Button(action: action) {
             layout {
-                SubscriptionIcon(
+                SubscriptionTile(
                     symbolName: service.symbolName,
                     color: SubscriptionAppearance.color(forHex: service.colorHex) ?? .accentColor
                 )

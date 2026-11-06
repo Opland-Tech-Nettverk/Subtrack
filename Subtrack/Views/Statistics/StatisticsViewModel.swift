@@ -65,10 +65,53 @@ struct StatisticsViewModel {
             .sorted { $0.monthlyCost > $1.monthlyCost }
     }
 
+    /// Kategoriene med andel i hele prosent som summerer til 100, dyrest først.
+    var categoryShares: [CategoryShare] {
+        CategoryBreakdown.shares(from: categoryCosts)
+    }
+
     /// De dyreste abonnementene per måned, høyest først.
     var mostExpensiveSubscriptions: [ConvertedSubscription] {
-        Array(convertedSubscriptions.sorted { $0.monthlyCost > $1.monthlyCost }.prefix(5))
+        mostExpensiveSubscriptions(limit: 5, in: nil)
     }
+
+    /// De dyreste abonnementene per måned, høyest først, bare i én kategori når `category` er satt.
+    func mostExpensiveSubscriptions(limit: Int, in category: SubscriptionCategory?) -> [ConvertedSubscription] {
+        let candidates = category.map { category in
+            convertedSubscriptions.filter { $0.category == category }
+        } ?? convertedSubscriptions
+        return Array(candidates.sorted { $0.monthlyCost > $1.monthlyCost }.prefix(limit))
+    }
+
+    /// Hva avsluttede abonnement har spart til nå, og hva de sparer per år fremover, omregnet til
+    /// målvalutaen. Abonnement uten kurs utelates og telles i `excludedCount`.
+    func savings(now: Date = .now, calendar: Calendar = .current) -> SavingsSummary {
+        let cancelled = subscriptions.filter(\.isCancelled)
+        let saved = CurrencyConverter.total(
+            of: cancelled.map { ($0.savedSinceCancellation(now: now, calendar: calendar), $0.currencyCode) },
+            in: targetCurrency,
+            using: rates
+        )
+        let yearly = CurrencyConverter.total(
+            of: cancelled.map { ($0.projectedYearlySavings, $0.currencyCode) },
+            in: targetCurrency,
+            using: rates
+        )
+        return SavingsSummary(
+            total: saved.amount,
+            yearly: yearly.amount,
+            cancelledCount: cancelled.count,
+            excludedCount: saved.excludedCount
+        )
+    }
+}
+
+/// Besparelsen fra avsluttede abonnement.
+struct SavingsSummary: Equatable {
+    let total: Decimal
+    let yearly: Decimal
+    let cancelledCount: Int
+    let excludedCount: Int
 }
 
 extension Decimal {

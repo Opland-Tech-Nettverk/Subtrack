@@ -13,6 +13,18 @@ final class ExchangeRateStore {
     private static let endpoint = URL(string: "https://api.frankfurter.dev/v1/latest?base=EUR")!
 
     init() {
+        #if DEBUG
+        // Eksempeldata for skjermbilder: faste kurser, og ingen nettverk eller lagring.
+        if AppEnvironment.isDemo {
+            rates = ExchangeRates(
+                base: "EUR",
+                rates: ["NOK": 11.6, "USD": 1.08, "SEK": 11.2, "DKK": 7.46],
+                rateDate: .now,
+                fetchedAt: .now
+            )
+            return
+        }
+        #endif
         if let data = UserDefaults.standard.data(forKey: Self.cacheKey) {
             rates = try? JSONDecoder().decode(ExchangeRates.self, from: data)
         }

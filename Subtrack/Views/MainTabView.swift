@@ -3,12 +3,12 @@ import SwiftData
 
 /// Fanene i appens rot-navigasjon.
 enum AppTab: Hashable {
-    case overview, statistics
+    case overview, calendar, statistics
 }
 
-/// Appens rot-navigasjon: oversikten over abonnement og statistikkskjermen.
+/// Appens rot-navigasjon: oversikten over abonnement, kalenderen og statistikkskjermen.
 struct MainTabView: View {
-    @State private var selectedTab: AppTab = .overview
+    @State private var selectedTab: AppTab = DemoLaunch.tab ?? .overview
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -18,6 +18,12 @@ struct MainTabView: View {
                     Label("Oversikt", systemImage: "list.bullet")
                 }
                 .tag(AppTab.overview)
+
+            CalendarView()
+                .tabItem {
+                    Label("Kalender", systemImage: "calendar")
+                }
+                .tag(AppTab.calendar)
 
             StatisticsView(showOverview: { selectedTab = .overview })
                 .tabItem {

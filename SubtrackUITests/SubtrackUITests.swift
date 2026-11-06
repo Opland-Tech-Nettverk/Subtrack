@@ -16,8 +16,16 @@ final class SubtrackUITests: XCTestCase {
 
     // MARK: - Hjelpere
 
-    private func addSubscription(name: String, price: String) {
+    /// «Legg til» er en meny med «Legg til selv» og «Importer fra kontoutskrift».
+    private func openAddForm() {
         app.buttons["Legg til"].tap()
+        let manual = app.buttons["Legg til selv"]
+        XCTAssertTrue(manual.waitForExistence(timeout: 5))
+        manual.tap()
+    }
+
+    private func addSubscription(name: String, price: String) {
+        openAddForm()
 
         let nameField = app.textFields["Navn"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
@@ -61,6 +69,22 @@ final class SubtrackUITests: XCTestCase {
     }
 
     @MainActor
+    func testEmptyStateOffersTheThreeEntryPoints() {
+        XCTAssertTrue(app.buttons["onboarding.add"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["onboarding.importStatement"].exists)
+        XCTAssertTrue(app.buttons["onboarding.shareReceipt"].exists)
+    }
+
+    @MainActor
+    func testAddMenuOffersStatementImport() {
+        app.buttons["Legg til"].tap()
+        let importItem = app.buttons["Importer fra kontoutskrift"]
+        XCTAssertTrue(importItem.waitForExistence(timeout: 5))
+        importItem.tap()
+        XCTAssertTrue(app.buttons["importChooseFile"].waitForExistence(timeout: 5), "Forklaringen skulle vært åpnet")
+    }
+
+    @MainActor
     func testAddingASubscriptionShowsItInTheListAndSummary() {
         addSubscription(name: "Netflix", price: "149")
 
@@ -71,7 +95,7 @@ final class SubtrackUITests: XCTestCase {
 
     @MainActor
     func testSaveIsDisabledUntilNameAndValidPriceAreEntered() {
-        app.buttons["Legg til"].tap()
+        openAddForm()
         let save = app.buttons["Lagre"]
         XCTAssertTrue(save.waitForExistence(timeout: 5))
         XCTAssertFalse(save.isEnabled)
@@ -96,7 +120,7 @@ final class SubtrackUITests: XCTestCase {
 
     @MainActor
     func testCatalogSuggestionFillsTheForm() {
-        app.buttons["Legg til"].tap()
+        openAddForm()
 
         let nameField = app.textFields["Navn"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))

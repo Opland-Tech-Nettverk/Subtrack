@@ -40,11 +40,14 @@ Appen er skrevet i Swift og SwiftUI, bruker bare Apples egne rammeverk og har br
 
 ### Oversikt over abonnement
 
-- **Sammendrag øverst** med total kostnad **per måned** og **per år** for alt som faktisk koster penger nå, omregnet til hovedvalutaen din. Pausede og avsluttede abonnement holdes utenfor.
-- **Hver rad** viser navn, intervall, pris og hvor lenge det er til neste trekk («I dag», «I morgen», «Om 5 dager»). Passerte datoer flyttes automatisk frem til neste fornyelse.
+- **Hero-kort øverst** med total kostnad **per måned** og **per år** for alt som faktisk koster penger nå, omregnet til hovedvalutaen din, og hva som trekkes først. Pausede og avsluttede abonnement holdes utenfor. Bakgrunnen har en svak gradient fra fargene til de dyreste abonnementene, og tallene ruller når de endres.
+- **Neste 30 dager:** en stripe med en kolonne per uke og summen for uka, og en prikk per dag i abonnementets farge der noe trekkes. Et trykk på en dag viser trekkene den dagen.
+- **Grupper:** med sortering på neste fornyelse deles listen i *Denne uka*, *Denne måneden*, *Senere* og *Pauset*.
+- **Hver rad** er et kort med abonnementets ikon i dets egen farge og en ring som viser hvor langt det er til neste trekk, og viser navn, intervall, pris og hvor lenge det er til neste trekk («I dag», «I morgen», «Om 5 dager»). Passerte datoer flyttes automatisk frem til neste fornyelse. Merker viser prøveperiode, pauset og at beløpet er i en annen valuta (med omregnet beløp). Dagens trekk har en liten puls.
 - **Fire sorteringer:** neste fornyelse, pris (høyest først, omregnet til hovedvalutaen så ulike valutaer sammenlignes riktig), navn eller kategori. Ved sortering på kategori får hver kategori sin egen seksjon. Valget huskes.
 - **Søk** i navn og kategori, uten å skille på store og små bokstaver eller aksenter.
-- **Trykk på en rad** for å åpne abonnementet i skjemaet.
+- **Trykk på en rad** for å åpne detaljsiden: toppen i abonnementets farge, nedtelling til neste trekk, pris per trekk, måned og år, kommende trekk, lenke for oppsigelse og knapper for pause og avslutt. Rediger åpner skjemaet.
+- **Tom tilstand:** uten abonnement vises tre innganger: legg til selv, importer kontoutskrift og del en kvittering.
 - **Sveipehandlinger:** sveip til høyre for å pause eller gjenoppta, til venstre for å redigere eller avslutte. Avslutt krever et trykk på knappen og skjer aldri ved et fullt sveip.
 - **Hold inne på en rad** for en meny med Rediger, Pause eller Gjenoppta og Avslutt, for dem som ikke finner eller kan bruke sveipene.
 - **Angre etter avslutt:** et banner nederst, for eksempel «Netflix» er avsluttet, har knappen «Angre» og blir stående i rundt 5 sekunder (10 sekunder med VoiceOver).
@@ -63,7 +66,7 @@ Appen er skrevet i Swift og SwiftUI, bruker bare Apples egne rammeverk og har br
 
 Velg en CSV-fil (eller tekstfil) du har eksportert fra nettbanken, så leter Subtrack etter betalinger som kommer igjen og foreslår dem som abonnementer.
 
-- **Tilgjengelig** fra menyen i Oversikt og fra Innstillinger, med en kort forklaring på hvordan man eksporterer fra nettbanken.
+- **Tilgjengelig** fra pluss-menyen i Oversikt, fra den tomme tilstanden og fra Innstillinger, med en kort forklaring på hvordan man eksporterer fra nettbanken.
 - **Kolonnene gjenkjennes fra overskriftene**, ikke fra hvilken bank filen kommer fra: dato, tekst og beløp, med eller uten egne kolonner for inn og ut. Filen kan være UTF-8 eller Windows-1252/ISO-8859-1, og dato og beløp tolkes slik norske banker skriver dem.
 - **Forslag, ikke innlegging:** forslagene vises som en liste med de sikreste først og huket av, og de middels sikre uhuket. Trykk på en rad for å åpne det utfylte skjemaet, eller bruk «Legg til valgte» for å legge inn de som er huket av. Ingenting legges inn uten at du har sett og godkjent det.
 - **Pris og valuta:** treffer forslaget en tjeneste i katalogen med omtrent samme beløp, brukes katalogens pris. Ellers brukes beløpet i originalvaluta når det er likt hver gang (utenlandske tjenester varierer i kroner med kursen), og ellers siste beløp.
@@ -108,16 +111,23 @@ Slå på «Gratis prøveperiode», så blir datoen du velger dagen prøveperiode
 - **Arkivet** viser hvor mye hvert abonnement har **spart** siden det ble avsluttet, en samlet sum «Spart så langt» i hovedvalutaen og hva du sparer **per år fremover**. Besparelsen øker jevnt dag for dag i stedet for å hoppe ved hver fornyelse. Et abonnement som allerede var pauset da det ble avsluttet, regnes ikke som en besparelse.
 - Fra arkivet kan du **gjenoppta** et abonnement eller **slette det for godt** (med bekreftelse), ved å sveipe eller holde inne på raden. Et fullt sveip åpner ikke slettedialogen.
 
+### Kalender
+
+- Egen fane med en måned om gangen, prikker i abonnementenes farger på trekkdagene og en tidslinje over månedens trekk med totalsum.
+- Et trykk på en dag viser bare trekkene den dagen. Passerte trekk i måneden er dempet.
+
 ### Statistikk
 
-- **Kostnad per kategori** som smultringdiagram, med en liste under som viser eksakte beløp per måned og fungerer som forklaring.
-- **De fem dyreste abonnementene** som liggende stolpediagram med beløp per måned.
+- **Spart totalt** øverst, med en teller, og hva avsluttede abonnement sparer per år fremover.
+- **Kostnad per kategori** som smultringdiagram med ikon og prosent per kategori. Et trykk på en sektor eller en kategori viser abonnementene i den og filtrerer «Dyreste».
+- **De fem dyreste abonnementene** som stolper i abonnementets farge, med ikon, navn og beløp inni raden.
+- **Kostnad framover:** de neste 12 månedene, så årlige trekk synes der de faller.
 - Alt regnes om til hovedvalutaen og bruker din andel av delte abonnement.
 - **Tomtilstander:** uten abonnement vises «Ingen abonnementer ennå», og er alle pauset eller avsluttet, vises «Ingen aktive abonnementer», siden de ikke tas med i statistikken. Begge har knappen «Gå til Oversikt».
 
 ### Widget «Neste trekk»
 
-- Widget for Hjem-skjermen i **liten** og **middels** størrelse som viser abonnementene som fornyes snart, med ikon, farge og hvor lenge det er igjen. Den middels store viser også pris.
+- Widget for Hjem-skjermen i **liten** og **middels** størrelse som viser neste trekk med ikon i abonnementets farge, beløp og hvor lenge det er igjen, og summen av trekkene resten av måneden (når de er i samme valuta). Den middels store viser også de to neste trekkene.
 - Teller ned hver natt uten at appen må åpnes, og markerer når en prøveperiode slutter.
 - Viser færre rader ved store tekststørrelser i stedet for å kutte innholdet.
 
@@ -133,10 +143,10 @@ Abonnementene synkroniseres mellom iPhone og iPad via CloudKit i din private iCl
 
 ### Tilgjengelighet
 
-- **Dynamic Type:** ved de største tekststørrelsene stables rader, sammendrag og beløp under hverandre i stedet for å kuttes. Stolpediagrammet byttes ut med en enkel liste, ikonene vokser med teksten (med et tak), og widgeten viser færre rader.
-- **VoiceOver:** hver rad leses som én knapp med et hint om at den åpner abonnementet for redigering. Avslutter du et abonnement, leses det opp, og angre-banneret blir stående lenger. Dekorative ikoner er skjult, sektordiagrammet har en tekstlig liste som alternativ, stolpene har navn og beløp, og ikon- og fargevelgeren har navn på hvert valg og sier hvilket som er valgt. Glidebryteren for glass-styrke har etikett og verdi i prosent.
+- **Dynamic Type:** ved de største tekststørrelsene stables rader, sammendrag og beløp under hverandre i stedet for å kuttes. Navn og beløp i «Dyreste» stables under hverandre, ikonene vokser med teksten (med et tak), og widgeten viser færre rader.
+- **VoiceOver:** hver rad leses som én knapp med et hint om at den åpner detaljene til abonnementet. Avslutter du et abonnement, leses det opp, og angre-banneret blir stående lenger. Dekorative ikoner er skjult, sektordiagrammet har en tekstlig liste som alternativ, stolpene har navn og beløp, og ikon- og fargevelgeren har navn på hvert valg og sier hvilket som er valgt. Glidebryteren for glass-styrke har etikett og verdi i prosent.
 - **Reduser gjennomsiktighet:** er dette slått på i iOS, blir oppsummeringskortene matte uansett hva glass-styrken står på.
-- **Reduser bevegelse:** angre-banneret tones bare inn og ut i stedet for å gli opp.
+- **Reduser bevegelse:** angre-banneret tones bare inn og ut, tall slutter å rulle, og pulsen på dagens trekk og tellingen av spart beløp står stille.
 - **Kontrast:** grønnfargen for sparte beløp er mørkere i lys modus. Oransje, grønn og turkis i fargepaletten får også en mørkere variant i lys modus, både i appen og i widgeten, så den fargede sirkelen skiller seg fra den hvite bakgrunnen (over 4:1 i stedet for ca. 2:1). I mørk modus brukes den lagrede fargen, som står godt mot den mørke bakgrunnen. Det hvite ikonet i sirkelen er dekorativt, så det er navnet som bærer betydningen. Den lagrede fargen endres ikke. Pausede rader demper bare ikonet og toner ned beløpet, så teksten forblir lesbar.
 - Trykkflatene i ikon- og fargevelgeren er minst 44 × 44 punkter.
 
@@ -271,16 +281,21 @@ Subtrack/
 │   ├── CurrencyConverter.swift          Omregning og støttede valutaer
 │   ├── WidgetSnapshotStore.swift        Øyeblikksbilde for widgeten
 │   ├── PriceParser.swift                Tolking av priser
+│   ├── Insights/                        Gruppering etter tid, neste 30 dager, kostnad framover, kalender, fremdrift
 │   ├── CancelLink.swift                 Tolking av avslutningslenker
 │   └── BankStatement/                   Import av kontoutskrift: avkoding, CSV, kolonner, mottakere og gjentakende trekk
 ├── Views/
-│   ├── SubscriptionList/                Oversikten, rader, sortering, sammendrag og arkiv
+│   ├── Design/                          Felles stil: kort, ikonflis med fremdriftsring, merker, tall
+│   ├── SubscriptionList/                Oversikten, rader, hero-kort, stripen for 30 dager, sortering og arkiv
+│   ├── Calendar/                        Kalenderfanen
+│   ├── Detail/                          Detaljsiden til et abonnement
+│   ├── Onboarding/                      Tom tilstand og inngangene for å legge inn abonnement
 │   ├── AddEditSubscription/             Skjemaet for nytt og eksisterende abonnement
 │   ├── ImportStatement/                 Import fra kontoutskrift: forklaring, filvalg og gjennomgang av forslag
 │   ├── Statistics/                      Statistikkskjermen og beregningene bak den
 │   ├── Settings/                        Hovedvaluta og glass-styrke
-│   ├── Shared/                          Glassbakgrunn, ikoner og farger, tomtilstand, lesbar bredde
-│   └── MainTabView.swift                Fanene Oversikt og Statistikk
+│   ├── Shared/                          Glassbakgrunn, ikoner og farger, lesbar bredde
+│   └── MainTabView.swift                Fanene Oversikt, Kalender og Statistikk
 └── PrivacyInfo.xcprivacy                Personvernmanifest
 SubtrackWidget/                          Widget-utvidelsen «Neste trekk»
 SubtrackTests/                           Enhetstester (Swift Testing), med syntetiske kontoutskrifter i Fixtures/
@@ -293,6 +308,7 @@ SubtrackUITests/                         UI-tester (XCTest)
 - Testene er laget for å gi samme resultat uansett hvor og når de kjøres, og det meste av datologikken testes med **faste kalendere og tidssoner** (blant annet UTC, Europe/Oslo og Europe/London). Flere av dem er parameteriserte med en rekke inndata.
 - **UI-tester med XCTest** går gjennom hovedflytene slik en bruker opplever dem: tom start, legge til et abonnement og se det i sammendraget, validering i skjemaet og bekreftelse før endringer forkastes, avslutte og gjenoppta, avslutte fra menyen og angre, søk, statistikk og at tom statistikk viser vei til Oversikt.
 - UI-testene starter appen med `-UITesting`. Da brukes en **tom database i minnet uten iCloud**, og varseldialogen hoppes over. Varsler, widget og datoryddingen røres ikke, så testene aldri rører ekte data.
+- **Skjermbilder i CI:** i debug-bygg starter `-UITesting -DemoData` appen med eksempelabonnement (og `-DemoScreen` velger skjermen), så CI kan ta skjermbilder av hovedskjermene i mørk og lys modus og ved stor tekst. Demomodusen finnes ikke i release-bygg.
 
 ## Personvern
 
