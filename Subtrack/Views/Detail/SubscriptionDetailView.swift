@@ -12,7 +12,6 @@ struct SubscriptionDetailView: View {
 
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @Environment(ExchangeRateStore.self) private var exchangeRates
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .largeTitle) private var priceSize: CGFloat = 38
 
@@ -243,7 +242,6 @@ struct SubscriptionDetailView: View {
             .buttonStyle(.bordered)
             Button(role: .destructive) {
                 onArchive()
-                dismiss()
             } label: {
                 Label("Avslutt", systemImage: "archivebox")
                     .frame(maxWidth: .infinity)
