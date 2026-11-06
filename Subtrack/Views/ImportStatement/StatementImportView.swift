@@ -27,6 +27,14 @@ struct StatementImportView: View {
 
     init(onAdded: (() -> Void)? = nil) {
         self.onAdded = onAdded
+        _phase = State(initialValue: Self.initialPhase)
+    }
+
+    /// Alltid forklaringen, bortsett fra i demomodus (skjermbilder i CI), der den kan starte på en annen skjerm.
+    private static var initialPhase: Phase {
+        if let analysis = DemoLaunch.statementAnalysis { return .review(analysis) }
+        if DemoLaunch.screen == "import-loading" { return .loading }
+        return .intro
     }
 
     /// Filtyper nettbankene eksporterer: CSV, tabulatorseparert og ren tekst (DNB lager `.txt`).
@@ -35,6 +43,7 @@ struct StatementImportView: View {
     var body: some View {
         NavigationStack {
             content
+                .background(Color.canvas)
                 .navigationTitle("Importer fra kontoutskrift")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -54,9 +63,7 @@ struct StatementImportView: View {
         case .intro:
             StatementImportIntroView { isPickingFile = true }
         case .loading:
-            ProgressView("Leser filen …")
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            StatementImportLoadingView()
                 .accessibilityIdentifier("importLoading")
         case .review(let analysis):
             StatementReviewView(
@@ -133,25 +140,36 @@ private struct StatementImportIntroView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Finn abonnementer i kontoutskriften din. Subtrack leter etter betalinger som kommer igjen, for eksempel hver måned, og foreslår dem som abonnementer.")
-
                 VStack(alignment: .leading, spacing: 12) {
+                    SubscriptionTile(symbolName: "doc.text.magnifyingglass", color: Color(hex: "#FF9F0A") ?? .orange, size: 56)
+                    Text("Finn abonnementer i kontoutskriften din")
+                        .font(.rounded(.title2))
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Subtrack leter etter betalinger som kommer igjen, for eksempel hver måned, og foreslår dem som abonnementer.")
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: 14) {
                     Text("Slik gjør du")
-                        .font(.headline)
+                        .font(.rounded(.headline))
                     stepRow(number: 1, text: "Logg inn i nettbanken og eksporter kontoutskriften som CSV-fil (noen banker kaller den tekstfil). Velg gjerne de siste 6 til 12 månedene: jo lengre periode, jo bedre forslag.")
                     stepRow(number: 2, text: "Trykk på «Velg fil» og velg filen. Den kan ligge i Filer, iCloud Drive eller en annen mappe.")
                     stepRow(number: 3, text: "Se gjennom forslagene. Ingenting legges inn før du har godkjent det.")
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(DS.cardPadding)
+                .card()
 
                 Label {
                     Text("Filen leses bare på telefonen. Den lagres ikke, sendes ikke noe sted, og forsvinner når du lukker denne skjermen. Bare abonnementene du velger å legge til, blir lagret.")
+                        .font(.subheadline)
                 } icon: {
                     Image(systemName: "lock.shield")
-                        .foregroundStyle(.tint)
+                        .foregroundStyle(Color.accentColor)
                 }
-                .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(DS.cardPadding)
+                .glassCard()
 
                 Text("Appen kjenner igjen kolonnene i filen fra overskriftene. Fungerer ikke filen din, send gjerne en tilbakemelding via TestFlight eller GitHub, uten innholdet i filen.")
                     .font(.footnote)
@@ -177,15 +195,36 @@ private struct StatementImportIntroView: View {
     private func stepRow(number: Int, text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text("\(number)")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 24, height: 24)
-                .background(Color.accentColor, in: Circle())
+                .font(.amount(.subheadline, weight: .bold))
+                .frame(width: 28, height: 28)
+                .background(Color.accentColor.opacity(0.16), in: Circle())
                 .accessibilityHidden(true)
             Text(text)
+                .font(.subheadline)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Steg \(number). \(text)")
+    }
+}
+
+/// Mens filen leses. Det går vanligvis raskt, men en lang fil kan ta et øyeblikk.
+private struct StatementImportLoadingView: View {
+    var body: some View {
+        VStack(spacing: 18) {
+            SubscriptionTile(symbolName: "doc.text.magnifyingglass", color: Color(hex: "#FF9F0A") ?? .orange, size: 64)
+            ProgressView()
+                .controlSize(.large)
+            VStack(spacing: 4) {
+                Text("Leser filen …")
+                    .font(.rounded(.title3))
+                Text("Filen blir på telefonen og lagres ikke.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 

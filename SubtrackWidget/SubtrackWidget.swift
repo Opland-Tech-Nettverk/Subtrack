@@ -8,6 +8,8 @@ import UIKit
 struct UpcomingRenewal: Codable, Identifiable {
     let name: String
     let price: Decimal
+    /// Brukerens del av trekket. Valgfri så data fra eldre app-versjoner fortsatt kan leses.
+    var share: Decimal? = nil
     let currencyCode: String
     let symbolName: String
     /// Valgfri så data skrevet av eldre app-versjoner fortsatt kan leses.
@@ -17,6 +19,9 @@ struct UpcomingRenewal: Codable, Identifiable {
     let isTrialEnd: Bool?
 
     var id: String { "\(name)-\(renewalDate.timeIntervalSince1970)" }
+
+    /// Beløpet widgeten viser og summerer: brukerens del, ellers hele prisen.
+    var amount: Decimal { share ?? price }
 
     var color: Color {
         colorHex.flatMap(Color.palette(hex:)) ?? .accentColor
@@ -82,9 +87,17 @@ enum RenewalSnapshotReader {
     }
 }
 
+/// Summen av trekkene resten av måneden, bare når de alle er i samme valuta.
+struct MonthSum {
+    let amount: Decimal
+    let currencyCode: String
+    let count: Int
+}
+
 struct RenewalEntry: TimelineEntry {
     let date: Date
     let renewals: [UpcomingRenewal]
+    var monthSum: MonthSum? = nil
 }
 
 struct Provider: TimelineProvider {
@@ -92,7 +105,7 @@ struct Provider: TimelineProvider {
     private let daysInTimeline = 7
 
     func placeholder(in context: Context) -> RenewalEntry {
-        RenewalEntry(date: .now, renewals: UpcomingRenewal.samples)
+        entry(for: .now, from: UpcomingRenewal.samples)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (RenewalEntry) -> Void) {
@@ -113,11 +126,74 @@ struct Provider: TimelineProvider {
         completion(Timeline(entries: entries, policy: .atEnd))
     }
 
-    private func entry(for date: Date, from renewals: [UpcomingRenewal]) -> RenewalEntry {
+    func entry(for date: Date, from renewals: [UpcomingRenewal]) -> RenewalEntry {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let upcoming = renewals.filter { calendar.startOfDay(for: $0.renewalDate) >= startOfDay }
-        return RenewalEntry(date: date, renewals: Array(upcoming.prefix(3)))
+
+        // Resten av måneden. Øyeblikksbildet har bare noen få trekk per abonnement, men nok til en måned.
+        let thisMonth = upcoming.filter { calendar.isDate($0.renewalDate, equalTo: date, toGranularity: .month) }
+        let currencies = Set(thisMonth.map(\.currencyCode))
+        var monthSum: MonthSum?
+        if currencies.count == 1, let currencyCode = currencies.first {
+            monthSum = MonthSum(
+                amount: thisMonth.reduce(Decimal(0)) { $0 + $1.amount },
+                currencyCode: currencyCode,
+                count: thisMonth.count
+            )
+        }
+        return RenewalEntry(date: date, renewals: Array(upcoming.prefix(3)), monthSum: monthSum)
+    }
+}
+
+/// Forskjellen mellom i dag og trekkdatoen, som tekst.
+private func dueText(for renewal: UpcomingRenewal, from referenceDate: Date) -> String {
+    let calendar = Calendar.current
+    let days = calendar.dateComponents(
+        [.day],
+        from: calendar.startOfDay(for: referenceDate),
+        to: calendar.startOfDay(for: renewal.renewalDate)
+    ).day ?? 0
+
+    if renewal.isTrialEnd == true {
+        return switch days {
+        case ..<1: "Prøve slutter i dag"
+        case 1: "Prøve slutter i morgen"
+        default: "Prøve slutter om \(days) dager"
+        }
+    }
+    return switch days {
+    case ..<1: "I dag"
+    case 1: "I morgen"
+    default: "Om \(days) dager"
+    }
+}
+
+/// Ikonflisen fra appen: abonnementets farge med en myk gradient og et hvitt symbol.
+private struct WidgetTile: View {
+    let symbolName: String
+    let color: Color
+    let size: CGFloat
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+        shape
+            .fill(color)
+            .overlay {
+                shape.fill(LinearGradient(
+                    colors: [.white.opacity(0.28), .white.opacity(0), .black.opacity(0.14)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ))
+            }
+            .overlay {
+                Image(systemName: symbolName)
+                    .font(.system(size: size * 0.46, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: size, height: size)
+            .widgetAccentable()
+            .accessibilityHidden(true)
     }
 }
 
@@ -126,91 +202,134 @@ struct SubtrackWidgetEntryView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let entry: RenewalEntry
 
-    private var isSmall: Bool { family == .systemSmall }
+    private var isLarge: Bool {
+        family == .systemMedium
+    }
 
     /// Widgeten har fast størrelse, så ved store tekststørrelser vises færre rader
     /// i stedet for at innholdet kuttes.
-    private var maxRows: Int {
-        if dynamicTypeSize.isAccessibilitySize { return isSmall ? 1 : 2 }
-        if dynamicTypeSize >= .xLarge { return isSmall ? 1 : 3 }
-        return isSmall ? 2 : 3
+    private var maxListRows: Int {
+        dynamicTypeSize >= .xLarge ? 1 : 2
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Neste trekk")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            if entry.renewals.isEmpty {
-                Spacer(minLength: 0)
-                Text("Ingen kommende trekk")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            } else {
-                ForEach(entry.renewals.prefix(maxRows)) { renewal in
-                    RenewalRow(renewal: renewal, referenceDate: entry.date, showsPrice: !isSmall)
+        Group {
+            if let next = entry.renewals.first {
+                if isLarge {
+                    HStack(alignment: .top, spacing: 16) {
+                        NextCharge(renewal: next, referenceDate: entry.date, monthSum: nil)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(entry.renewals.dropFirst().prefix(maxListRows)) { renewal in
+                                CompactRow(renewal: renewal, referenceDate: entry.date)
+                            }
+                            Spacer(minLength: 0)
+                            MonthFooter(monthSum: entry.monthSum)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        NextCharge(renewal: next, referenceDate: entry.date, monthSum: entry.monthSum)
+                    }
                 }
-                Spacer(minLength: 0)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Neste trekk", systemImage: "calendar")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Text("Ingen kommende trekk")
+                        .font(.system(.footnote, design: .rounded, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
-private struct RenewalRow: View {
+/// Det neste trekket, stort: ikon, navn, beløp og når det trekkes. Med summen for måneden nederst i den lille widgeten.
+private struct NextCharge: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let renewal: UpcomingRenewal
     let referenceDate: Date
-    let showsPrice: Bool
-
-    private var dueText: String {
-        let calendar = Calendar.current
-        let days = calendar.dateComponents(
-            [.day],
-            from: calendar.startOfDay(for: referenceDate),
-            to: calendar.startOfDay(for: renewal.renewalDate)
-        ).day ?? 0
-
-        if renewal.isTrialEnd == true {
-            return switch days {
-            case ..<1: "Prøve slutter i dag"
-            case 1: "Prøve slutter i morgen"
-            default: "Prøve slutter om \(days) dager"
-            }
-        }
-        return switch days {
-        case ..<1: "I dag"
-        case 1: "I morgen"
-        default: "Om \(days) dager"
-        }
-    }
+    let monthSum: MonthSum?
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: renewal.symbolName)
-                .font(.caption)
-                .foregroundStyle(.white)
-                .frame(width: 24, height: 24)
-                .background(renewal.color, in: Circle())
-
-            VStack(alignment: .leading, spacing: 0) {
-                Text(renewal.name)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-                Text(dueText)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Neste trekk", systemImage: "calendar")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                WidgetTile(symbolName: renewal.symbolName, color: renewal.color, size: 34)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(renewal.name)
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .lineLimit(1)
+                    Text(dueText(for: renewal, from: referenceDate))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
-
-            if showsPrice {
-                Spacer(minLength: 4)
-                Text(renewal.price.formatted(.currency(code: renewal.currencyCode)))
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
+            Text(renewal.amount.formatted(.currency(code: renewal.currencyCode).precision(.fractionLength(0...2))))
+                .font(.system(.title2, design: .rounded, weight: .bold).monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Spacer(minLength: 0)
+            if monthSum != nil, dynamicTypeSize < .xLarge {
+                MonthFooter(monthSum: monthSum)
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Et trekk til i listen på den mellomstore widgeten.
+private struct CompactRow: View {
+    let renewal: UpcomingRenewal
+    let referenceDate: Date
+
+    var body: some View {
+        HStack(spacing: 8) {
+            WidgetTile(symbolName: renewal.symbolName, color: renewal.color, size: 26)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(renewal.name)
+                    .font(.system(.footnote, design: .rounded, weight: .semibold))
+                    .lineLimit(1)
+                Text(dueText(for: renewal, from: referenceDate))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Text(renewal.amount.formatted(.currency(code: renewal.currencyCode).precision(.fractionLength(0...2))))
+                .font(.system(.footnote, design: .rounded, weight: .semibold).monospacedDigit())
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// «Resten av måneden» med summen av trekkene, når den er kjent.
+private struct MonthFooter: View {
+    let monthSum: MonthSum?
+
+    var body: some View {
+        if let monthSum {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Resten av måneden")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(monthSum.amount.formatted(.currency(code: monthSum.currencyCode).precision(.fractionLength(0))))
+                    .font(.system(.footnote, design: .rounded, weight: .bold).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .accessibilityElement(children: .combine)
+        }
     }
 }
 
@@ -220,10 +339,21 @@ struct SubtrackWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             SubtrackWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(for: .widget) {
+                    // Svak gradient i fargen til neste trekk, over widgetens vanlige bakgrunn.
+                    let color = entry.renewals.first?.color ?? Color.accentColor
+                    ZStack {
+                        Rectangle().fill(.fill.tertiary)
+                        LinearGradient(
+                            colors: [color.opacity(0.3), color.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
+                }
         }
         .configurationDisplayName("Neste trekk")
-        .description("Viser abonnementene som fornyes snart.")
+        .description("Viser neste trekk og hva som trekkes resten av måneden.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -239,12 +369,12 @@ extension UpcomingRenewal {
 #Preview("Liten", as: .systemSmall) {
     SubtrackWidget()
 } timeline: {
-    RenewalEntry(date: .now, renewals: UpcomingRenewal.samples)
+    Provider().entry(for: .now, from: UpcomingRenewal.samples)
     RenewalEntry(date: .now, renewals: [])
 }
 
 #Preview("Mellomstor", as: .systemMedium) {
     SubtrackWidget()
 } timeline: {
-    RenewalEntry(date: .now, renewals: UpcomingRenewal.samples)
+    Provider().entry(for: .now, from: UpcomingRenewal.samples)
 }

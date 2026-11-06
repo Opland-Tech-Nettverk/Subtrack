@@ -87,13 +87,8 @@ struct StatementReviewView: View {
     private var list: some View {
         List {
             Section {
-                Text(periodText)
-                    .font(.subheadline)
-                if analysis.isShortPeriod {
-                    Label("Perioden er kortere enn to måneder. Flere måneder gir bedre forslag.", systemImage: "info.circle")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                periodCard
+                    .bareRowStyle()
             }
 
             Section {
@@ -101,11 +96,15 @@ struct StatementReviewView: View {
                     row(for: suggestion)
                 }
             } header: {
-                Text("Forslag (\(selection.suggestions.count))")
+                SectionTitle(title: "Forslag (\(selection.suggestions.count))")
             } footer: {
                 Text("Sikre forslag er huket av, unntatt de som ligner et abonnement du har fra før. Trykk på et forslag for å se det og endre det før det legges inn.")
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .listSectionSpacing(14)
         .safeAreaInset(edge: .bottom) {
             Button(action: addSelected) {
                 Text("Legg til valgte (\(selection.selectedCount))")
@@ -121,9 +120,35 @@ struct StatementReviewView: View {
         }
     }
 
+    /// Hva som ble lest, og om perioden er kort.
+    private var periodCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label {
+                Text(periodText)
+                    .font(.subheadline)
+            } icon: {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .foregroundStyle(Color.accentColor)
+            }
+            if analysis.isShortPeriod {
+                Label("Perioden er kortere enn to måneder. Flere måneder gir bedre forslag.", systemImage: "info.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DS.cardPadding)
+        .glassCard()
+    }
+
     private func row(for suggestion: SubscriptionSuggestion) -> some View {
         let isSelected = selection.isSelected(suggestion.id)
-        return HStack(spacing: 4) {
+        return rowContent(for: suggestion, isSelected: isSelected)
+            .cardRowStyle(isHighlighted: isSelected)
+    }
+
+    private func rowContent(for suggestion: SubscriptionSuggestion, isSelected: Bool) -> some View {
+        HStack(spacing: 4) {
             Button {
                 toggle(suggestion)
             } label: {
@@ -195,38 +220,51 @@ private struct SuggestionRowContent: View {
         suggestion.draft.colorHex.flatMap(SubscriptionAppearance.color(forHex:)) ?? .accentColor
     }
 
+    /// Tilleggsmerker: ligner et abonnement du har fra før, eller middels sikker.
+    @ViewBuilder
+    private var badges: some View {
+        if suggestion.similarTo != nil || suggestion.confidence == .medium {
+            HStack(spacing: 4) {
+                if let similar = suggestion.similarTo {
+                    Badge(text: "Ligner «\(similar)»", symbol: "exclamationmark.circle", tint: .orange)
+                }
+                if suggestion.confidence == .medium {
+                    Badge(text: "Middels sikker", symbol: "questionmark.circle", tint: .gray)
+                }
+            }
+        }
+    }
+
     private var lastChargeText: String {
         "Sist trukket \(suggestion.lastChargeDate.formatted(.dateTime.day().month(.abbreviated)))"
     }
 
     private var priceText: String {
-        suggestion.price.formatted(.currency(code: suggestion.currencyCode))
+        Money.string(suggestion.price, code: suggestion.currencyCode)
     }
 
     var body: some View {
-        AdaptiveRowLayout(isStacked: isStacked) {
-            SubscriptionIcon(symbolName: symbolName, color: color)
-        } title: {
-            Text(suggestion.name)
-                .font(.body.weight(.medium))
-                .foregroundStyle(Color.primary)
-            Text("\(suggestion.interval.displayName) · \(lastChargeText)")
-                .font(.caption)
-                .foregroundStyle(Color.secondary)
-            if let similar = suggestion.similarTo {
-                Text("Ligner «\(similar)»")
+        VStack(alignment: .leading, spacing: 8) {
+            AdaptiveRowLayout(isStacked: isStacked) {
+                SubscriptionTile(symbolName: symbolName, color: color, size: 38)
+            } title: {
+                Text(suggestion.name)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.primary)
+                Text(lastChargeText)
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            } detail: {
+                Text(priceText)
+                    .font(.amount(.body))
+                    .foregroundStyle(Color.primary)
+                Text(suggestion.interval.displayName)
                     .font(.caption)
                     .foregroundStyle(Color.secondary)
             }
-        } detail: {
-            Text(priceText)
-                .font(.body.weight(.medium))
-                .foregroundStyle(Color.primary)
-            if suggestion.confidence == .medium {
-                Text("Middels sikker")
-                    .font(.caption)
-                    .foregroundStyle(Color.secondary)
-            }
+            // Merkene på egen linje under raden, så «Ligner «…»» får hele bredden.
+            badges
+                .padding(.leading, isStacked ? 0 : 50)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenText)

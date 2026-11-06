@@ -58,13 +58,13 @@ struct ArchivedSubscriptionsView: View {
         List {
             Section {
                 TotalSavingsView(subscriptions: archived)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
+                    .bareRowStyle()
             }
 
             Section {
                 ForEach(archived) { subscription in
                     ArchivedRow(subscription: subscription)
+                        .cardRowStyle()
                         .swipeActions(edge: .leading) {
                             Button("Gjenoppta") { restore(subscription) }
                                 .tint(.green)
@@ -93,6 +93,10 @@ struct ArchivedSubscriptionsView: View {
                 Text("Sveip, eller hold inne på et abonnement, for å gjenoppta eller slette det for godt.")
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .listSectionSpacing(14)
         .readableContentWidth()
     }
 
@@ -110,7 +114,6 @@ struct ArchivedSubscriptionsView: View {
 private struct TotalSavingsView: View {
     let subscriptions: [Subscription]
 
-    @AppStorage(AppSettingsKeys.glassIntensity) private var glassIntensity: Double = 0.6
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @Environment(ExchangeRateStore.self) private var exchangeRates
 
@@ -134,14 +137,16 @@ private struct TotalSavingsView: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("Spart så langt")
-                .font(.caption)
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
-            Text(total.amount.formatted(.currency(code: mainCurrency)))
-                .font(.title.bold())
+            Text(Money.string(total.amount, code: mainCurrency))
+                .font(.amount(.largeTitle, weight: .bold))
                 .foregroundStyle(Color.savings)
-                .contentTransition(.numericText())
-            Text("\(yearlySavings.amount.formatted(.currency(code: mainCurrency))) per år fremover")
-                .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .numericMotion(total.amount)
+            Text("\(Money.string(yearlySavings.amount, code: mainCurrency, whole: true)) per år fremover")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             if total.excludedCount > 0 {
                 Text("\(total.excludedCount) abonnement uten valutakurs er ikke tatt med")
@@ -150,8 +155,17 @@ private struct TotalSavingsView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .adjustableGlassBackground(intensity: glassIntensity)
+        .padding(.vertical, 18)
+        .padding(.horizontal, 16)
+        .background {
+            RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color.savings.opacity(0.2), Color.savings.opacity(0.05)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+        }
+        .glassCard()
         .accessibilityElement(children: .combine)
     }
 }
@@ -163,18 +177,18 @@ private struct ArchivedRow: View {
 
     var body: some View {
         AdaptiveRowLayout(isStacked: dynamicTypeSize.isAccessibilitySize) {
-            SubscriptionIcon(symbolName: subscription.displaySymbolName, color: .gray)
+            SubscriptionTile(symbolName: subscription.displaySymbolName, color: .gray)
         } title: {
             Text(subscription.name)
-                .font(.body.weight(.medium))
+                .font(.body.weight(.semibold))
             if let cancelledDate = subscription.cancelledDate {
                 Text("Avsluttet \(cancelledDate.formatted(date: .abbreviated, time: .omitted))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         } detail: {
-            Text(subscription.savedSinceCancellation().formatted(.currency(code: subscription.currencyCode)))
-                .font(.body.weight(.medium))
+            Text(Money.string(subscription.savedSinceCancellation(), code: subscription.currencyCode))
+                .font(.amount(.body))
                 .foregroundStyle(Color.savings)
             Text("spart")
                 .font(.caption)

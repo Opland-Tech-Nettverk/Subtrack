@@ -10,14 +10,31 @@ final class SubtrackUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication(bundleIdentifier: "com.opland.subtrack")
         // "-sortOrder renewal" overstyrer @AppStorage-verdien, så sorteringen er forutsigbar.
-        app.launchArguments = ["-UITesting", "-sortOrder", "renewal"]
+        // "-UITestingNoAnimations" slår av UIKit-animasjoner i appen, så den lettere regnes som
+        // rolig mens pluss-menyen er åpen (iOS 27 melder ellers ikke ferdig animasjon på 60 sekunder).
+        app.launchArguments = ["-UITesting", "-UITestingNoAnimations", "-sortOrder", "renewal"]
         app.launch()
     }
 
     // MARK: - Hjelpere
 
-    private func addSubscription(name: String, price: String) {
+    /// Åpner skjemaet for et nytt abonnement. Uten abonnement i listen går det direkte via kortet
+    /// i den tomme tilstanden, uten pluss-menyen. Ellers er «Legg til» en meny med «Legg til selv»
+    /// og «Importer fra kontoutskrift». Testene som må gjennom menyen, får lengre tid.
+    private func openAddForm() {
+        let card = app.buttons["onboarding.add"]
+        if card.waitForExistence(timeout: 2) {
+            card.tap()
+            return
+        }
         app.buttons["Legg til"].tap()
+        let manual = app.buttons["Legg til selv"]
+        XCTAssertTrue(manual.waitForExistence(timeout: 5))
+        manual.tap()
+    }
+
+    private func addSubscription(name: String, price: String) {
+        openAddForm()
 
         let nameField = app.textFields["Navn"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
@@ -48,7 +65,7 @@ final class SubtrackUITests: XCTestCase {
 
     /// Venter til elementet er borte. `waitForExistence` svarer med en gang om det fortsatt
     /// finnes, så det egner seg ikke til å vente på at noe forsvinner.
-    private func waitForDisappearance(of element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+    private func waitForDisappearance(of element: XCUIElement, timeout: TimeInterval = 15) -> Bool {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
         return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
@@ -58,6 +75,24 @@ final class SubtrackUITests: XCTestCase {
     @MainActor
     func testShowsEmptyStateOnFirstLaunch() {
         XCTAssertTrue(app.staticTexts["Ingen abonnementer ennå"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testEmptyStateOffersTheThreeEntryPoints() {
+        XCTAssertTrue(app.buttons["onboarding.add"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["onboarding.importStatement"].exists)
+        XCTAssertTrue(app.buttons["onboarding.shareReceipt"].exists)
+    }
+
+    @MainActor
+    func testAddMenuOffersStatementImport() {
+        // Pluss-menyen holder appen opptatt lenge på iOS 27; se `openAddForm`.
+        executionTimeAllowance = 600
+        app.buttons["Legg til"].tap()
+        let importItem = app.buttons["Importer fra kontoutskrift"]
+        XCTAssertTrue(importItem.waitForExistence(timeout: 5))
+        importItem.tap()
+        XCTAssertTrue(app.buttons["importChooseFile"].waitForExistence(timeout: 5), "Forklaringen skulle vært åpnet")
     }
 
     @MainActor
@@ -71,7 +106,7 @@ final class SubtrackUITests: XCTestCase {
 
     @MainActor
     func testSaveIsDisabledUntilNameAndValidPriceAreEntered() {
-        app.buttons["Legg til"].tap()
+        openAddForm()
         let save = app.buttons["Lagre"]
         XCTAssertTrue(save.waitForExistence(timeout: 5))
         XCTAssertFalse(save.isEnabled)
@@ -96,7 +131,7 @@ final class SubtrackUITests: XCTestCase {
 
     @MainActor
     func testCatalogSuggestionFillsTheForm() {
-        app.buttons["Legg til"].tap()
+        openAddForm()
 
         let nameField = app.textFields["Navn"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
@@ -187,7 +222,33 @@ final class SubtrackUITests: XCTestCase {
     }
 
     @MainActor
+    func testArchivingFromTheFormOnTheDetailPageKeepsTheUndoBanner() {
+        addSubscription(name: "Netflix", price: "149")
+
+        // Detaljsiden, så Rediger, så Avslutt abonnement og bekreftelsen.
+        row(named: "Netflix").tap()
+        let edit = app.buttons["Rediger"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        edit.tap()
+        // Knappen ligger nederst i skjemaet og finnes ikke i hierarkiet før det er rullet dit.
+        let archive = app.buttons["Avslutt abonnement"]
+        for _ in 0..<6 where !archive.exists || !archive.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(archive.waitForExistence(timeout: 5))
+        archive.tap()
+        let confirm = app.alerts.buttons["Avslutt"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+
+        // Detaljsiden er borte, og angre-banneret står på listen.
+        XCTAssertTrue(undoArchiveButton.waitForExistence(timeout: 5), "Angre-banneret skulle vært synlig på listen")
+        XCTAssertFalse(app.buttons["Pause"].exists, "Detaljsiden skulle vært lukket")
+    }
+
+    @MainActor
     func testSearchFiltersTheList() {
+        executionTimeAllowance = 600
         addSubscription(name: "Netflix", price: "149")
         addSubscription(name: "Spotify", price: "129")
 
