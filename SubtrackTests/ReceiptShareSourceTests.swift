@@ -21,27 +21,36 @@ struct ReceiptShareSourceTests {
         #expect(ReceiptShareSource.kind(forTypeIdentifier: identifier) == nil)
     }
 
-    @Test func textWinsOverPDFAndImage() {
-        let choice = ReceiptShareSource.choose(from: [["public.jpeg"], ["com.adobe.pdf"], ["public.url", "public.utf8-plain-text"]])
+    @Test func attachmentsComeBeforeTheTextThatFollowsThem() {
+        let choices = ReceiptShareSource.orderedChoices(from: [["public.utf8-plain-text"], ["com.adobe.pdf"]])
 
-        #expect(choice == ReceiptShareSource.Choice(index: 2, kind: .text, typeIdentifier: "public.utf8-plain-text"))
+        #expect(choices.map(\.kind) == [.pdf, .text])
+        #expect(choices.map(\.index) == [1, 0])
     }
 
-    @Test func pdfWinsOverImage() {
-        let choice = ReceiptShareSource.choose(from: [["public.png"], ["com.adobe.pdf"]])
+    @Test func pdfComesBeforeImageAndImageBeforeText() {
+        let choices = ReceiptShareSource.orderedChoices(from: [["public.jpeg"], ["public.utf8-plain-text"], ["com.adobe.pdf"]])
 
-        #expect(choice?.kind == .pdf)
-        #expect(choice?.index == 1)
+        #expect(choices.map(\.kind) == [.pdf, .image, .text])
     }
 
-    @Test func firstAttachmentWinsWithinTheSameKind() {
-        let choice = ReceiptShareSource.choose(from: [["public.heic", "public.jpeg"], ["public.png"]])
+    @Test func eachAttachmentGivesOneChoiceWithItsFirstSupportedType() {
+        let choices = ReceiptShareSource.orderedChoices(from: [["public.url", "public.utf8-plain-text"], ["public.heic", "public.jpeg"]])
 
-        #expect(choice == ReceiptShareSource.Choice(index: 0, kind: .image, typeIdentifier: "public.heic"))
+        #expect(choices == [
+            ReceiptShareSource.Choice(index: 1, kind: .image, typeIdentifier: "public.heic"),
+            ReceiptShareSource.Choice(index: 0, kind: .text, typeIdentifier: "public.utf8-plain-text")
+        ])
     }
 
-    @Test func nothingSupportedGivesNoChoice() {
-        #expect(ReceiptShareSource.choose(from: []) == nil)
-        #expect(ReceiptShareSource.choose(from: [["public.url"], ["public.html"]]) == nil)
+    @Test func firstAttachmentComesFirstWithinTheSameKind() {
+        let choices = ReceiptShareSource.orderedChoices(from: [["public.png"], ["public.jpeg"]])
+
+        #expect(choices.map(\.index) == [0, 1])
+    }
+
+    @Test func nothingSupportedGivesNoChoices() {
+        #expect(ReceiptShareSource.orderedChoices(from: []).isEmpty)
+        #expect(ReceiptShareSource.orderedChoices(from: [["public.url"], ["public.html"]]).isEmpty)
     }
 }

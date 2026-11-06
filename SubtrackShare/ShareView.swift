@@ -9,7 +9,13 @@ struct ShareView: View {
             Spacer(minLength: 0)
             content
             Spacer(minLength: 0)
-            if model.state != .reading {
+            if model.state == .reading {
+                Button("Avbryt") {
+                    model.cancel()
+                }
+                .controlSize(.large)
+                .accessibilityIdentifier("share.cancel")
+            } else {
                 Button {
                     model.dismiss()
                 } label: {
@@ -46,8 +52,8 @@ struct ShareView: View {
             message(
                 symbol: "checkmark.circle.fill",
                 color: .green,
-                title: "Lagt klar i Subtrack.",
-                detail: "Åpne Subtrack for å fullføre."
+                title: "Lagt klar i SubTrack.",
+                detail: "Åpne SubTrack for å fullføre."
             )
         case .failed(let failure):
             message(symbol: "exclamationmark.triangle.fill", color: .orange, title: failure.title, detail: failure.detail)
@@ -86,10 +92,14 @@ private extension ShareViewModel.Failure {
         switch self {
         case .unreadable:
             "Del teksten i kvitteringen, en PDF eller et bilde av den."
-        case .noText:
+        case .noText(.pdf):
+            "PDF-en er låst eller har ingen tekst som kan leses. Del teksten i kvitteringen i stedet."
+        case .noText(.image):
             "Prøv et skarpere bilde, eller del teksten i kvitteringen i stedet."
+        case .noText(.text):
+            "Teksten du delte, er tom."
         case .cannotSave:
-            "Prøv igjen. Hjelper det ikke, åpne Subtrack og prøv på nytt."
+            "Prøv igjen. Hjelper det ikke, åpne SubTrack og prøv på nytt."
         }
     }
 }

@@ -38,7 +38,7 @@ struct ReceiptInboxProcessorTests {
 
     // MARK: - Lese og sette i kø
 
-    @Test func queuesOneDraftPerReceiptOldestFirstAndDeletesTheFiles() async throws {
+    @Test func queuesOneDraftPerReceiptOldestFirstAndKeepsTheFiles() async throws {
         let inbox = makeInbox()
         defer { cleanUp(inbox) }
         let now = Date()
@@ -52,7 +52,9 @@ struct ReceiptInboxProcessorTests {
 
         #expect(count == 2)
         #expect(router.pendingDrafts.map(\.name) == ["første", "andre"])
-        #expect(files(in: inbox).isEmpty)
+        // Filene slettes først når skjemaet er lagret eller forkastet.
+        #expect(files(in: inbox).count == 2)
+        #expect(router.pendingDrafts.allSatisfy { $0.receiptInboxID != nil })
     }
 
     @Test func anEmptyInboxQueuesNothing() async {
@@ -108,26 +110,105 @@ struct ReceiptInboxProcessorTests {
         #expect(total == 1)
         #expect(counter.texts == ["kvittering"])
         #expect(router.pendingDrafts.count == 1)
-        #expect(files(in: inbox).isEmpty)
     }
 
-    @Test func aReceiptWhoseFileCameBackIsNotQueuedAgain() async throws {
+    @Test func aReceiptStillInTheInboxIsNotQueuedAgainInTheSameSession() async throws {
         let inbox = makeInbox()
         defer { cleanUp(inbox) }
-        let item = try inbox.write(text: "kvittering", kind: .text)
+        try inbox.write(text: "kvittering", kind: .text)
         let router = AddSubscriptionRouter()
         let counter = DraftCounter()
         let processor = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await counter.draft(for: $0) }, router: router)
-        let file = inbox.directory.appendingPathComponent("\(item.id.uuidString).json")
-        let saved = try Data(contentsOf: file)
 
         #expect(await processor.processInbox() == 1)
-        // Som om slettingen feilet: filen med samme id ligger der igjen.
-        try saved.write(to: file)
-        let second = await processor.processInbox()
+        // Appen blir aktiv igjen mens skjemaet ennå ikke er lagret: filen ligger der fortsatt.
+        #expect(await processor.processInbox() == 0)
+        #expect(await processor.processInbox() == 0)
 
-        #expect(second == 0)
         #expect(router.pendingDrafts.count == 1)
+        #expect(counter.texts == ["kvittering"])
+        #expect(files(in: inbox).count == 1)
+    }
+
+    // MARK: - Slett når brukeren er ferdig
+
+    @Test func killingTheAppBeforeSavingQueuesTheReceiptAgainOnTheNextLaunch() async throws {
+        let inbox = makeInbox()
+        defer { cleanUp(inbox) }
+        let item = try inbox.write(text: "kvittering", kind: .text)
+        let firstRouter = AddSubscriptionRouter()
+        let firstLaunch = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await DraftCounter().draft(for: $0) }, router: firstRouter)
+        #expect(await firstLaunch.processInbox() == 1)
+        // Appen avsluttes her: køen og skjemaet i minnet er borte, men filen er der.
+
+        let secondRouter = AddSubscriptionRouter()
+        let secondLaunch = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await DraftCounter().draft(for: $0) }, router: secondRouter)
+        let count = await secondLaunch.processInbox()
+
+        #expect(count == 1)
+        #expect(secondRouter.pendingDrafts.first?.receiptInboxID == item.id)
+        #expect(files(in: inbox).count == 1)
+    }
+
+    @Test func savingTheDraftDeletesTheFile() async throws {
+        let inbox = makeInbox()
+        defer { cleanUp(inbox) }
+        try inbox.write(text: "kvittering", kind: .text)
+        let router = AddSubscriptionRouter()
+        let processor = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await DraftCounter().draft(for: $0) }, router: router)
+        #expect(await processor.processInbox() == 1)
+        let draft = try #require(router.dequeue())
+        #expect(files(in: inbox).count == 1)
+
+        // Skjemaet kaller `finish` når abonnementet er lagret.
+        processor.finish(draft)
+
+        #expect(files(in: inbox).isEmpty)
+        // Heller ikke ved neste oppstart kommer kvitteringen tilbake.
+        let relaunched = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await DraftCounter().draft(for: $0) }, router: AddSubscriptionRouter())
+        #expect(await relaunched.processInbox() == 0)
+    }
+
+    @Test func discardingTheDraftDeletesOnlyThatReceiptsFile() async throws {
+        let inbox = makeInbox()
+        defer { cleanUp(inbox) }
+        let now = Date()
+        try inbox.write(text: "forkastet", kind: .text, now: now.addingTimeInterval(-10))
+        try inbox.write(text: "venter", kind: .text, now: now)
+        let router = AddSubscriptionRouter()
+        let processor = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await DraftCounter().draft(for: $0) }, router: router)
+        #expect(await processor.processInbox(now: now) == 2)
+        let discarded = try #require(router.dequeue())
+
+        // Skjemaet kaller `finish` også når brukeren velger Avbryt og Forkast endringer.
+        processor.finish(discarded)
+
+        #expect(discarded.name == "forkastet")
+        #expect(files(in: inbox).count == 1)
+        let remaining = inbox.entries(now: now)
+        #expect(remaining.map(\.item.text) == ["venter"])
+    }
+
+    @Test func finishingADraftThatDidNotComeFromTheInboxDeletesNothing() async throws {
+        let inbox = makeInbox()
+        defer { cleanUp(inbox) }
+        try inbox.write(text: "kvittering", kind: .text)
+        let processor = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await DraftCounter().draft(for: $0) }, router: AddSubscriptionRouter())
+
+        processor.finish(SubscriptionDraft(source: .shortcut, name: "Netflix"))
+
+        #expect(files(in: inbox).count == 1)
+    }
+
+    @Test func aReceiptThatWasNeverFinishedIsStillPurgedAfterSevenDays() async throws {
+        let inbox = makeInbox()
+        defer { cleanUp(inbox) }
+        let now = Date()
+        try inbox.write(text: "gammel", kind: .text, now: now.addingTimeInterval(-8 * 24 * 3_600))
+        let router = AddSubscriptionRouter()
+        let processor = ReceiptInboxProcessor(inbox: { inbox }, makeDraft: { await DraftCounter().draft(for: $0) }, router: router)
+
+        #expect(await processor.processInbox(now: now) == 0)
         #expect(files(in: inbox).isEmpty)
     }
 

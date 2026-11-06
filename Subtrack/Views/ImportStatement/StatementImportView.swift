@@ -145,7 +145,7 @@ private struct StatementImportIntroView: View {
                     Text("Finn abonnementer i kontoutskriften din")
                         .font(.rounded(.title2))
                         .accessibilityAddTraits(.isHeader)
-                    Text("Subtrack leter etter betalinger som kommer igjen, for eksempel hver måned, og foreslår dem som abonnementer.")
+                    Text("SubTrack leter etter betalinger som kommer igjen, for eksempel hver måned, og foreslår dem som abonnementer.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -239,9 +239,9 @@ private struct StatementImportFailureView: View {
             return "Filen er tom eller kunne ikke leses. Eksporter kontoutskriften som CSV-fil fra nettbanken og prøv igjen."
         case .missingColumns(let columns):
             let list = columns.joined(separator: ", ")
-            return "Fant ikke kolonnene: \(list). Subtrack trenger kolonner for dato, tekst og beløp. Eksporter kontoutskriften som CSV-fil fra nettbanken og prøv igjen."
+            return "Fant ikke kolonnene: \(list). SubTrack trenger kolonner for dato, tekst og beløp. Eksporter kontoutskriften som CSV-fil fra nettbanken og prøv igjen."
         case .noTransactions:
-            return "Filen har riktige kolonner, men ingen utgående betalinger Subtrack kunne lese. Sjekk at filen er en kontoutskrift med utgifter, og eksporter den som CSV-fil."
+            return "Filen har riktige kolonner, men ingen utgående betalinger SubTrack kunne lese. Sjekk at filen er en kontoutskrift med utgifter, og eksporter den som CSV-fil."
         }
     }
 

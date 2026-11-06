@@ -248,7 +248,11 @@ struct SubscriptionListView: View {
         }
         // På navigasjonsstakken og ikke på listen, så utkastet også vises når arkivet er åpnet.
         .sheet(item: $presentedDraft, onDismiss: presentNextDraft) { draft in
-            SubscriptionFormView(draft: draft)
+            SubscriptionFormView(
+                draft: draft,
+                onSaved: { ReceiptInboxProcessor.shared.finish(draft) },
+                onDiscarded: { ReceiptInboxProcessor.shared.finish(draft) }
+            )
         }
         // Køen går fra tom til ikke tom. Flere utkast etter hverandre vises via onDismiss over.
         .onChange(of: router.hasPendingDrafts) {

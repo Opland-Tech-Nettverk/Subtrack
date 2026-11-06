@@ -21,6 +21,9 @@ nonisolated struct SubscriptionDraft: Identifiable, Equatable {
     var note: String? = nil
     /// Katalogtjenesten utkastet kom fra, om noen. Brukes av skjemaet til å vise planvalg.
     var catalogServiceID: String? = nil
+    /// Filen i innboksen (delt kvittering) utkastet kom fra. Filen slettes først når skjemaet er lagret eller
+    /// forkastet, så en kvittering ikke går tapt hvis appen avsluttes før brukeren er ferdig.
+    var receiptInboxID: UUID? = nil
 }
 
 extension SubscriptionDraft {

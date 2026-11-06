@@ -34,7 +34,7 @@ struct OnboardingView: View {
                         symbolName: "square.and.arrow.down",
                         color: Color(hex: "#30D158") ?? .green,
                         title: "Del en kvittering",
-                        subtitle: "Del en e-post, en PDF eller et bilde med Subtrack, så fylles skjemaet ut.",
+                        subtitle: "Del teksten i en e-post, en PDF eller et bilde med SubTrack, så fylles skjemaet ut.",
                         identifier: "onboarding.shareReceipt",
                         action: shareReceipt
                     )

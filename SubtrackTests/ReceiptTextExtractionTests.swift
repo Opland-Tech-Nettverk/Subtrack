@@ -136,23 +136,99 @@ struct ReceiptTextExtractionTests {
         #expect(ReceiptTextExtraction.text(fromImageAt: url) == nil)
     }
 
-    @Test func bigImagesAreDownscaledWhileDecoding() throws {
+    @Test func imagesOverThePixelBudgetAreDownscaledWhileDecoding() throws {
         let url = temporaryURL("png")
-        try makeReceiptImage(size: CGSize(width: 6_000, height: 400)).pngData()!.write(to: url)
+        try makeReceiptImage(size: CGSize(width: 3_000, height: 2_000)).pngData()!.write(to: url)
         defer { try? fileManager.removeItem(at: url) }
 
-        let image = try #require(ReceiptTextExtraction.downscaledImage(at: url, maxDimension: 1_500))
+        let image = try #require(ReceiptTextExtraction.downscaledImage(at: url, maxPixels: 1_000_000))
 
-        #expect(max(image.width, image.height) == 1_500)
+        #expect(image.width * image.height <= 1_000_000)
+        // Sideforholdet er bevart.
+        #expect(abs(Double(image.width) / Double(image.height) - 1.5) < 0.01)
+    }
+
+    @Test func aSquareImageGetsTheSamePixelBudgetAsANarrowOne() throws {
+        let square = temporaryURL("png")
+        let narrow = temporaryURL("png")
+        try makeReceiptImage(size: CGSize(width: 3_000, height: 3_000)).pngData()!.write(to: square)
+        try makeReceiptImage(size: CGSize(width: 6_000, height: 1_500)).pngData()!.write(to: narrow)
+        defer {
+            try? fileManager.removeItem(at: square)
+            try? fileManager.removeItem(at: narrow)
+        }
+
+        let squareImage = try #require(ReceiptTextExtraction.downscaledImage(at: square, maxPixels: 4_000_000))
+        let narrowImage = try #require(ReceiptTextExtraction.downscaledImage(at: narrow, maxPixels: 4_000_000))
+
+        #expect(squareImage.width * squareImage.height <= 4_000_000)
+        #expect(narrowImage.width * narrowImage.height <= 4_000_000)
+    }
+
+    @Test func theDefaultPixelBudgetKeepsTheBitmapWellUnderFortyMegabytes() {
+        #expect(ReceiptTextExtraction.maxImagePixels * 4 <= 40_000_000)
+        #expect(ReceiptTextExtraction.thumbnailDimension(width: 8_000, height: 6_000, maxPixels: 6_000_000) == 2_828)
+        // En lang skjermdump får færre piksler i bredden enn en kvadratisk, men samme totalbudsjett.
+        let tall = ReceiptTextExtraction.thumbnailDimension(width: 1_290, height: 12_000, maxPixels: 6_000_000)
+        let tallWidth = Int(Double(tall) * 1_290 / 12_000)
+        #expect(tallWidth * tall <= 6_000_000)
     }
 
     @Test func smallImagesAreNotEnlarged() throws {
         let url = try makeImageFile()
         defer { try? fileManager.removeItem(at: url) }
 
-        let image = try #require(ReceiptTextExtraction.downscaledImage(at: url, maxDimension: ReceiptTextExtraction.maxImageDimension))
+        let image = try #require(ReceiptTextExtraction.downscaledImage(at: url))
 
-        #expect(image.width <= 1_300)
+        #expect(image.width == 1_300)
+        #expect(image.height == 500)
+    }
+
+    // MARK: - Sidebilde for OCR
+
+    private func firstPage(ofPDFAt url: URL) throws -> PDFPage {
+        try #require(PDFDocument(url: url)?.page(at: 0))
+    }
+
+    @Test func aScannedPageIsRenderedAtScaleOneWithTheOCRWidth() throws {
+        let url = try makeScannedPDF()
+        defer { try? fileManager.removeItem(at: url) }
+
+        let image = try #require(ReceiptTextExtraction.firstPageImage(try firstPage(ofPDFAt: url)))
+
+        // 612 punkter bredt gir 1 600 piksler, uansett skjermens skala. Med skjermskala 3 ville det vært 1 836.
+        #expect(image.width == ReceiptTextExtraction.pdfOCRWidth)
+        #expect(image.width * image.height <= ReceiptTextExtraction.maxImagePixels)
+    }
+
+    @Test func aVeryTallPageStaysWithinThePixelBudget() throws {
+        let url = temporaryURL("pdf")
+        defer { try? fileManager.removeItem(at: url) }
+        let rect = CGRect(x: 0, y: 0, width: 612, height: 4_000)
+        try UIGraphicsPDFRenderer(bounds: rect).writePDF(to: url) { context in
+            context.beginPage()
+            UIColor.black.setFill()
+            UIRectFill(CGRect(x: 10, y: 10, width: 100, height: 100))
+        }
+
+        let image = try #require(ReceiptTextExtraction.firstPageImage(try firstPage(ofPDFAt: url)))
+
+        #expect(Double(image.width * image.height) <= Double(ReceiptTextExtraction.maxImagePixels) * 1.001)
+        #expect(image.width < ReceiptTextExtraction.pdfOCRWidth)
+        // Sideforholdet er bevart (612 x 4 000).
+        #expect(abs(Double(image.height) / Double(image.width) - 4_000.0 / 612.0) < 0.05)
+    }
+
+    @Test func theRenderedPageSizeFollowsTheRequestedWidthAndBudget() throws {
+        let url = try makeScannedPDF()
+        defer { try? fileManager.removeItem(at: url) }
+        let page = try firstPage(ofPDFAt: url)
+
+        let narrow = try #require(ReceiptTextExtraction.firstPageImage(page, width: 400))
+        let capped = try #require(ReceiptTextExtraction.firstPageImage(page, width: 1_600, maxPixels: 500_000))
+
+        #expect(narrow.width == 400)
+        #expect(capped.width * capped.height <= 500_000 + 2_000)
     }
 
     // MARK: - Språk og tekstbehandling

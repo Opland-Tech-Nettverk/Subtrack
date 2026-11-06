@@ -22,16 +22,19 @@ nonisolated enum ReceiptShareSource {
         return nil
     }
 
-    /// Tekst først, så PDF, så bilde. Innen samme slag vinner det første vedlegget. `providers` har type-
-    /// identifikatorene til hvert vedlegg, i den rekkefølgen vedlegget selv oppgir dem.
-    static func choose(from providers: [[String]]) -> Choice? {
-        for wanted in [ReceiptInboxKind.text, .pdf, .image] {
+    /// Alt som kan leses, i den rekkefølgen det skal prøves: PDF, så bilde, så tekst. Teksten kommer sist fordi den
+    /// ofte bare er en tittel som følger med filen (en nettleser eller bankapp deler «Kvittering 123» sammen med PDF-en).
+    /// Innen samme slag kommer det første vedlegget først. Utvidelsen bruker den første som gir tekst.
+    /// `providers` har type-identifikatorene til hvert vedlegg, i den rekkefølgen vedlegget selv oppgir dem.
+    static func orderedChoices(from providers: [[String]]) -> [Choice] {
+        var result: [Choice] = []
+        for wanted in [ReceiptInboxKind.pdf, .image, .text] {
             for (index, identifiers) in providers.enumerated() {
-                for identifier in identifiers where kind(forTypeIdentifier: identifier) == wanted {
-                    return Choice(index: index, kind: wanted, typeIdentifier: identifier)
+                if let identifier = identifiers.first(where: { kind(forTypeIdentifier: $0) == wanted }) {
+                    result.append(Choice(index: index, kind: wanted, typeIdentifier: identifier))
                 }
             }
         }
-        return nil
+        return result
     }
 }

@@ -160,6 +160,11 @@ nonisolated struct ReceiptInbox {
         try? fileManager.removeItem(at: entry.url)
     }
 
+    /// Sletter filen til kvitteringen med denne id-en, om den finnes. Filen heter alltid `<id>.json`.
+    func remove(id: UUID, fileManager: FileManager = .default) {
+        try? fileManager.removeItem(at: directory.appendingPathComponent("\(id.uuidString).json"))
+    }
+
     /// Leser alle gyldige kvitteringer, eldste først, og sletter filene.
     func drain(now: Date = Date(), fileManager: FileManager = .default) -> [ReceiptInboxItem] {
         let found = entries(now: now, fileManager: fileManager)

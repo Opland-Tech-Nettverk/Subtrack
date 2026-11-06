@@ -1,7 +1,7 @@
 import Foundation
 import ImageIO
 import PDFKit
-import UIKit
+import CoreGraphics
 import Vision
 
 // Henter tekst ut av PDF-er og bilder. Brukes av delingsutvidelsen og enhetstestes i appen.
@@ -10,15 +10,16 @@ import Vision
 // fra en bakgrunnsoppgave. De er `nonisolated` fordi begge targets har MainActor som standard.
 
 nonisolated enum ReceiptTextExtraction {
-    /// Lengste side i pikslene bildet skaleres ned til før OCR. Utvidelsen har ca. 120 MB minne, og et
-    /// ferdig dekodet bilde koster 4 byte per piksel. 3 500 piksler gir under 25 MB for et skjermbilde.
-    static let maxImageDimension = 3_500
+    /// Mest piksler (bredde ganger høyde) et bilde har når Vision får det. Utvidelsen har ca. 120 MB minne, og et
+    /// dekodet bilde koster 4 byte per piksel: 6 millioner piksler er 24 MB, så det er god plass til Vision selv.
+    /// Grensen gjelder pikseltallet og ikke lengste side, for et kvadratisk bilde er mye dyrere enn et smalt.
+    static let maxImagePixels = 6_000_000
     /// Så mange sider leses fra en PDF med tekst. En kvittering er kort.
     static let maxPDFPages = 20
     /// Samme grense som innboksen.
     static let maxTextLength = ReceiptInbox.maxTextLength
-    /// Bredden første PDF-side tegnes med når den må leses med OCR.
-    static let pdfOCRWidth: CGFloat = 1_600
+    /// Bredden første PDF-side tegnes med når den må leses med OCR (i piksler, ikke punkter).
+    static let pdfOCRWidth = 1_600
 
     // MARK: - PDF
 
@@ -44,12 +45,44 @@ nonisolated enum ReceiptTextExtraction {
         return recognizeText(in: image)
     }
 
-    private static func firstPageImage(_ page: PDFPage) -> CGImage? {
-        let bounds = page.bounds(for: .mediaBox)
-        guard bounds.width > 0, bounds.height > 0 else { return nil }
-        let scale = pdfOCRWidth / bounds.width
-        let size = CGSize(width: pdfOCRWidth, height: min(bounds.height * scale, CGFloat(maxImageDimension)))
-        return page.thumbnail(of: size, for: .mediaBox).cgImage
+    /// Første PDF-side som bilde, tegnet i skala 1: nøyaktig `pdfOCRWidth` piksler bredt, men aldri over
+    /// `maxPixels`. `PDFPage.thumbnail` bruker skjermens skala (3x på en iPhone), som gir et bilde på over
+    /// 100 MB for en hel side, så siden tegnes selv i en `CGContext` med nøyaktig pikselstørrelse.
+    static func firstPageImage(_ page: PDFPage, width: Int = pdfOCRWidth, maxPixels: Int = maxImagePixels) -> CGImage? {
+        guard let pdfPage = page.pageRef else { return nil }
+        let box = pdfPage.getBoxRect(.mediaBox)
+        let rotated = pdfPage.rotationAngle % 180 != 0
+        let pageWidth = rotated ? box.height : box.width
+        let pageHeight = rotated ? box.width : box.height
+        guard pageWidth > 0, pageHeight > 0 else { return nil }
+
+        var scale = CGFloat(width) / pageWidth
+        let pixels = pageWidth * scale * pageHeight * scale
+        if pixels > CGFloat(maxPixels) {
+            scale *= (CGFloat(maxPixels) / pixels).squareRoot()
+        }
+        let size = CGSize(
+            // Det lille tillegget fjerner flyttallsfeil, så en side på 612 punkter blir nøyaktig 1 600 piksler.
+            width: max(1, (pageWidth * scale + 0.0001).rounded(.down)),
+            height: max(1, (pageHeight * scale + 0.0001).rounded(.down))
+        )
+
+        let rect = CGRect(origin: .zero, size: size)
+        guard let context = CGContext(
+            data: nil,
+            width: Int(size.width),
+            height: Int(size.height),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+        ) else { return nil }
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.fill(rect)
+        // Et CGContext har origo nede til venstre, som PDF, så siden trenger bare tilpasning til størrelsen.
+        context.concatenate(pdfPage.getDrawingTransform(.mediaBox, rect: rect, rotate: 0, preserveAspectRatio: true))
+        context.drawPDFPage(pdfPage)
+        return context.makeImage()
     }
 
     // MARK: - Bilde
@@ -60,10 +93,16 @@ nonisolated enum ReceiptTextExtraction {
         return recognizeText(in: image)
     }
 
-    /// Dekoder bildet direkte i redusert størrelse, uten først å lage hele bildet i full oppløsning.
-    static func downscaledImage(at url: URL, maxDimension: Int = maxImageDimension) -> CGImage? {
+    /// Dekoder bildet direkte i redusert størrelse, uten først å lage hele bildet i full oppløsning. Bildet
+    /// forstørres aldri, og har høyst `maxPixels` piksler.
+    static func downscaledImage(at url: URL, maxPixels: Int = maxImagePixels) -> CGImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions) else { return nil }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let width = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue ?? 0
+        let height = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue ?? 0
+        guard width > 0, height > 0 else { return nil }
+        let maxDimension = thumbnailDimension(width: width, height: height, maxPixels: maxPixels)
         let options = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
@@ -71,6 +110,16 @@ nonisolated enum ReceiptTextExtraction {
             kCGImageSourceThumbnailMaxPixelSize: maxDimension
         ] as CFDictionary
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options)
+    }
+
+    /// Lengste side bildet skal ha for å holde seg innenfor `maxPixels`, med uendret sideforhold. Bilder som
+    /// allerede er små nok, beholder sin lengste side.
+    static func thumbnailDimension(width: Int, height: Int, maxPixels: Int) -> Int {
+        let longest = max(width, height)
+        let pixels = width * height
+        guard pixels > maxPixels else { return longest }
+        let scale = (Double(maxPixels) / Double(pixels)).squareRoot()
+        return max(1, Int((Double(longest) * scale).rounded(.down)))
     }
 
     /// Norsk hvis Vision støtter det, ellers automatisk språkgjenkjenning (Vision kjenner ikke alltid norsk).

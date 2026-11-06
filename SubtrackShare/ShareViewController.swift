@@ -10,9 +10,15 @@ final class ShareViewController: UIViewController {
 
         let items = (extensionContext?.inputItems as? [NSExtensionItem]) ?? []
         let providers = items.flatMap { $0.attachments ?? [] }
-        let model = ShareViewModel(providers: providers) { [weak self] in
-            self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-        }
+        let model = ShareViewModel(
+            providers: providers,
+            finish: { [weak self] in
+                self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+            },
+            cancelRequest: { [weak self] in
+                self?.extensionContext?.cancelRequest(withError: CocoaError(.userCancelled))
+            }
+        )
 
         let host = UIHostingController(rootView: ShareView(model: model))
         addChild(host)

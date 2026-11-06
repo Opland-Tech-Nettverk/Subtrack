@@ -8,8 +8,8 @@ final class ShareViewModel {
     enum Failure: Equatable {
         /// Filen kunne ikke åpnes eller leses.
         case unreadable
-        /// Filen ble lest, men det var ingen tekst i den.
-        case noText
+        /// Innholdet ble lest, men det var ingen tekst i det. `kind` sier hva som ble delt.
+        case noText(ReceiptInboxKind)
         /// Teksten kunne ikke legges i innboksen (App Group mangler, disken er full e.l.).
         case cannotSave
     }
@@ -24,48 +24,81 @@ final class ShareViewModel {
 
     private let providers: [NSItemProvider]
     private let finish: () -> Void
+    private let cancelRequest: () -> Void
     private var hasStarted = false
+    private var workTask: Task<Void, Never>?
 
-    /// `finish` lukker utvidelsen.
-    init(providers: [NSItemProvider], finish: @escaping () -> Void) {
+    /// `finish` lukker utvidelsen etter at brukeren har sett resultatet. `cancelRequest` avbryter den.
+    init(providers: [NSItemProvider], finish: @escaping () -> Void, cancelRequest: @escaping () -> Void) {
         self.providers = providers
         self.finish = finish
+        self.cancelRequest = cancelRequest
     }
 
     func dismiss() {
         finish()
     }
 
+    /// Brukeren trykket Avbryt mens kvitteringen leses. Ingenting skrives til innboksen.
+    func cancel() {
+        workTask?.cancel()
+        cancelRequest()
+    }
+
     /// Kjøres én gang når skjermen vises.
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
+        let work = Task { await run() }
+        workTask = work
+        await withTaskCancellationHandler {
+            await work.value
+        } onCancel: {
+            work.cancel()
+        }
+    }
 
-        guard let choice = ReceiptShareSource.choose(from: providers.map(\.registeredTypeIdentifiers)) else {
+    private func run() async {
+        // Rydder opp etter en tidligere kjøring som ble avsluttet av systemet midt i lesingen.
+        ShareItemLoader.removeStaleTemporaryFiles()
+
+        let choices = ReceiptShareSource.orderedChoices(from: providers.map(\.registeredTypeIdentifiers))
+        guard !choices.isEmpty else {
             state = .failed(.unreadable)
             return
         }
-        let provider = providers[choice.index]
 
-        let text: String?
-        switch choice.kind {
-        case .text:
-            text = await ShareItemLoader.text(from: provider)
-        case .pdf, .image:
-            guard let file = await ShareItemLoader.copyOfFile(from: provider, typeIdentifier: choice.typeIdentifier) else {
-                state = .failed(.unreadable)
-                return
+        // PDF og bilde først, så teksten som ofte bare er en tittel på vedlegget. Den første som gir tekst, brukes.
+        var failure = Failure.unreadable
+        for choice in choices {
+            guard !Task.isCancelled else { return }
+            let provider = providers[choice.index]
+
+            let text: String?
+            switch choice.kind {
+            case .text:
+                text = await ShareItemLoader.text(from: provider)
+            case .pdf, .image:
+                guard let file = await ShareItemLoader.copyOfFile(from: provider, typeIdentifier: choice.typeIdentifier) else {
+                    continue
+                }
+                // Kopien er midlertidig og slettes uansett utfall. Bare teksten lever videre.
+                defer { try? FileManager.default.removeItem(at: file) }
+                text = await ShareItemLoader.extractText(from: file, kind: choice.kind)
             }
-            // Kopien er midlertidig og slettes uansett utfall. Bare teksten lever videre.
-            defer { try? FileManager.default.removeItem(at: file) }
-            text = await ShareItemLoader.extractText(from: file, kind: choice.kind)
-        }
 
-        guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            state = .failed(.noText)
+            guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                failure = .noText(choice.kind)
+                continue
+            }
+            guard !Task.isCancelled else { return }
+            save(text, kind: choice.kind)
             return
         }
+        state = .failed(failure)
+    }
 
+    private func save(_ text: String, kind: ReceiptInboxKind) {
         guard let inbox = ReceiptInbox.appGroup() else {
             state = .failed(.cannotSave)
             return
@@ -74,7 +107,7 @@ final class ShareViewModel {
         // som aldri åpner appen.
         _ = inbox.entries()
         do {
-            try inbox.write(text: text, kind: choice.kind)
+            try inbox.write(text: text, kind: kind)
             state = .done
         } catch {
             state = .failed(.cannotSave)
@@ -84,6 +117,27 @@ final class ShareViewModel {
 
 /// Tung og blokkerende lasting, utenfor hovedaktøren. `nonisolated` så closurene ikke arver MainActor.
 nonisolated enum ShareItemLoader {
+    /// Egen mappe for kopiene, så den kan ryddes uten å røre noe annet i `tmp`.
+    private static var temporaryFolder: URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("SharedReceipt", isDirectory: true)
+    }
+
+    /// Sletter kopier som ble liggende igjen fordi utvidelsen ble avsluttet midt i lesingen. Bare filer eldre enn
+    /// to minutter, så en annen kjøring som holder på akkurat nå, ikke mister filen sin.
+    static func removeStaleTemporaryFiles(now: Date = Date(), olderThan age: TimeInterval = 120) {
+        let fileManager = FileManager.default
+        let urls = (try? fileManager.contentsOfDirectory(
+            at: temporaryFolder,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        )) ?? []
+        for url in urls {
+            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            if modified.map({ now.timeIntervalSince($0) > age }) ?? true {
+                try? fileManager.removeItem(at: url)
+            }
+        }
+    }
+
     static func text(from provider: NSItemProvider) async -> String? {
         await withCheckedContinuation { continuation in
             _ = provider.loadObject(ofClass: NSString.self) { object, _ in
@@ -100,10 +154,12 @@ nonisolated enum ShareItemLoader {
                     continuation.resume(returning: nil)
                     return
                 }
-                let copy = FileManager.default.temporaryDirectory
+                let folder = temporaryFolder
+                let copy = folder
                     .appendingPathComponent(UUID().uuidString)
                     .appendingPathExtension(url.pathExtension)
                 do {
+                    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                     try FileManager.default.copyItem(at: url, to: copy)
                     continuation.resume(returning: copy)
                 } catch {

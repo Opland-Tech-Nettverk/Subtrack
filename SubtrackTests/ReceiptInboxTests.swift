@@ -322,6 +322,19 @@ struct ReceiptInboxTests {
         }
     }
 
+    @Test func removeByIdDeletesOnlyThatFile() throws {
+        try withInbox { inbox, directory in
+            let first = try inbox.write(text: "A", kind: .text, now: now)
+            try inbox.write(text: "B", kind: .text, now: now.addingTimeInterval(1))
+
+            inbox.remove(id: first.id)
+            inbox.remove(id: UUID())
+
+            #expect(files(in: directory).count == 1)
+            #expect(inbox.entries(now: now).map(\.item.text) == ["B"])
+        }
+    }
+
     @Test func writerRejectsEmptyText() throws {
         try withInbox { inbox, directory in
             #expect(throws: ReceiptInbox.WriteError.emptyText) {

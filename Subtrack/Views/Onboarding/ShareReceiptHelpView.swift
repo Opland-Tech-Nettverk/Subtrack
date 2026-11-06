@@ -25,8 +25,9 @@ struct ShareReceiptHelpContent: View {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Del en kvittering")
                     .font(.rounded(.title))
-                step(1, "Åpne kvitteringen i Mail, Safari, Filer eller Bilder. Du kan dele teksten, en PDF eller et skjermbilde.")
-                step(2, "Trykk på del-knappen og velg SubTrack. Står den ikke blant appene, velg «Mer» og slå den på.")
+                    .accessibilityAddTraits(.isHeader)
+                step(1, "Marker teksten i e-posten, eller åpne PDF-en eller skjermbildet i Mail, Filer eller Bilder, og trykk på del-knappen.")
+                step(2, "Velg SubTrack. Står den ikke blant appene, trykk på «Mer».")
                 step(3, "Åpne SubTrack. Skjemaet er fylt ut, så du ser over og lagrer. Det som ikke stod i kvitteringen, står tomt.")
                 Label("Teksten leses bare på telefonen. Den ligger kryptert og utenfor sikkerhetskopien til du åpner SubTrack, slettes senest etter 7 dager, og ingenting legges inn før du har godkjent det.", systemImage: "lock.fill")
                     .font(.footnote)

@@ -21,6 +21,9 @@ struct SubscriptionFormView: View {
     /// Kalles når et nytt abonnement er lagret fra skjemaet, rett før det lukkes. Brukes av
     /// import fra kontoutskrift til å ta forslaget ut av listen.
     var onSaved: (() -> Void)? = nil
+    /// Kalles når brukeren forkaster skjemaet (Avbryt, og Forkast endringer hvis noe er endret). Brukes av delte
+    /// kvitteringer til å slette filen i innboksen.
+    var onDiscarded: (() -> Void)? = nil
 
     @State private var name = ""
     @State private var priceText = ""
@@ -284,9 +287,11 @@ struct SubscriptionFormView: View {
                         }
                         .accessibilityIdentifier("intervalPicker")
                         if !intervalIsChosen {
-                            Text("Velg hvor ofte det trekkes, så totalene blir riktige.")
+                            // Sekundærfarge og ikon i stedet for oransje tekst, som ikke har nok kontrast.
+                            Label("Velg hvor ofte det trekkes, så totalene blir riktige.", systemImage: "exclamationmark.circle")
                                 .font(.footnote)
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("intervalHint")
                         }
                     }
                     Toggle("Gratis prøveperiode", isOn: $hasTrial)
@@ -407,7 +412,10 @@ struct SubscriptionFormView: View {
             // Varsel av samme grunn: som popover ved store tekststørrelser falt
             // "Fortsett å redigere" bort, så "Forkast endringer" var eneste valg.
             .alert("Forkaste endringene?", isPresented: $showsDiscardConfirmation) {
-                Button("Forkast endringer", role: .destructive) { dismiss() }
+                Button("Forkast endringer", role: .destructive) {
+                    onDiscarded?()
+                    dismiss()
+                }
                 Button("Fortsett å redigere", role: .cancel) {}
             } message: {
                 Text("Endringene du har gjort, blir ikke lagret.")
@@ -420,6 +428,7 @@ struct SubscriptionFormView: View {
                         if hasUnsavedChanges {
                             showsDiscardConfirmation = true
                         } else {
+                            onDiscarded?()
                             dismiss()
                         }
                     }

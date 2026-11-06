@@ -59,6 +59,7 @@ struct SettingsView: View {
                 Section {
                     NavigationLink {
                         ShareReceiptHelpContent()
+                            .navigationTitle("Del en kvittering")
                             .navigationBarTitleDisplayMode(.inline)
                     } label: {
                         Label("Slik deler du en kvittering", systemImage: "square.and.arrow.up")
@@ -67,7 +68,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Del en kvittering")
                 } footer: {
-                    Text("Del en e-post, en PDF eller et skjermbilde med SubTrack, så fylles skjemaet ut. Teksten leses bare på telefonen.")
+                    Text("Del teksten i en e-post, en PDF eller et skjermbilde med SubTrack, så fylles skjemaet ut. Teksten leses bare på telefonen.")
                 }
             }
             .navigationTitle("Innstillinger")
