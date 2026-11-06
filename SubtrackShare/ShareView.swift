@@ -15,7 +15,7 @@ struct ShareView: View {
                 }
                 .controlSize(.large)
                 .accessibilityIdentifier("share.cancel")
-            } else {
+            } else if model.state != .cancelled {
                 Button {
                     model.dismiss()
                 } label: {
@@ -55,6 +55,8 @@ struct ShareView: View {
                 title: "Lagt klar i SubTrack.",
                 detail: "Åpne SubTrack for å fullføre."
             )
+        case .cancelled:
+            EmptyView()
         case .failed(let failure):
             message(symbol: "exclamationmark.triangle.fill", color: .orange, title: failure.title, detail: failure.detail)
         }

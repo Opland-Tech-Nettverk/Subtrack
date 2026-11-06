@@ -24,6 +24,8 @@ struct SubscriptionFormView: View {
     /// Kalles når brukeren forkaster skjemaet (Avbryt, og Forkast endringer hvis noe er endret). Brukes av delte
     /// kvitteringer til å slette filen i innboksen.
     var onDiscarded: (() -> Void)? = nil
+    /// Kalles når lagringen til disk feilet. `onSaved` kalles da ikke, så kvitteringsfilen i innboksen blir stående.
+    var onSaveFailed: (() -> Void)? = nil
 
     @State private var name = ""
     @State private var priceText = ""
@@ -619,8 +621,12 @@ struct SubscriptionFormView: View {
         if subscriptionToEdit == nil {
             // Til disk før kvitteringsfilen slettes: autolagring kan ta et par sekunder, og dør appen i mellomtiden,
             // er både abonnementet og kvitteringen borte.
-            try? modelContext.save()
-            onSaved?()
+            do {
+                try modelContext.save()
+                onSaved?()
+            } catch {
+                onSaveFailed?()
+            }
         }
         dismiss()
     }

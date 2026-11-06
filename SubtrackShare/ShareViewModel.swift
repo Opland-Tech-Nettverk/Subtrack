@@ -18,6 +18,8 @@ final class ShareViewModel {
         case reading
         case done
         case failed(Failure)
+        /// Brukeren avbrøt (Avbryt eller sveip ned). Forespørselen er avbrutt, og ingenting skrives.
+        case cancelled
     }
 
     private(set) var state: State = .reading
@@ -41,6 +43,10 @@ final class ShareViewModel {
 
     /// Brukeren trykket Avbryt mens kvitteringen leses. Ingenting skrives til innboksen.
     func cancel() {
+        // Ut av .reading først, så `cancelIfReading` (som kommer når skjermen forsvinner etter Avbryt) ikke
+        // avbryter forespørselen en gang til, og så arbeidet ikke kan sette en annen tilstand etterpå.
+        guard state == .reading else { return }
+        state = .cancelled
         workTask?.cancel()
         cancelRequest()
     }
@@ -48,7 +54,6 @@ final class ShareViewModel {
     /// Skjermen forsvant (brukeren sveipet den ned) mens kvitteringen fortsatt ble lest: avbryt arbeidet og
     /// forespørselen, så verten får beskjed og ingenting skrives til innboksen.
     func cancelIfReading() {
-        guard state == .reading else { return }
         cancel()
     }
 
@@ -71,7 +76,7 @@ final class ShareViewModel {
 
         let choices = ReceiptShareSource.orderedChoices(from: providers.map(\.registeredTypeIdentifiers))
         guard !choices.isEmpty else {
-            state = .failed(.unreadable)
+            finishReading(.failed(.unreadable))
             return
         }
 
@@ -102,12 +107,12 @@ final class ShareViewModel {
             save(text, kind: choice.kind)
             return
         }
-        state = .failed(failure)
+        finishReading(.failed(failure))
     }
 
     private func save(_ text: String, kind: ReceiptInboxKind) {
         guard let inbox = ReceiptInbox.appGroup() else {
-            state = .failed(.cannotSave)
+            finishReading(.failed(.cannotSave))
             return
         }
         // Rydder bort gamle kvitteringer samtidig, så teksten ikke blir liggende i mer enn 7 dager hos den
@@ -115,10 +120,16 @@ final class ShareViewModel {
         _ = inbox.entries()
         do {
             try inbox.write(text: text, kind: kind)
-            state = .done
+            finishReading(.done)
         } catch {
-            state = .failed(.cannotSave)
+            finishReading(.failed(.cannotSave))
         }
+    }
+
+    /// Setter sluttilstanden, men bare hvis brukeren ikke har avbrutt i mellomtiden.
+    private func finishReading(_ newState: State) {
+        guard state == .reading else { return }
+        state = newState
     }
 }
 
