@@ -23,6 +23,9 @@ struct SubscriptionListView: View {
     @State private var isShowingReceiptHelp = false
     /// Utkastet fra `AddSubscriptionRouter` som vises i skjemaet nå, f.eks. fra snarveien.
     @State private var presentedDraft: SubscriptionDraft?
+    /// Utkastet arket sist viste. `onDismiss` får ikke vite hvilket utkast det var, og trenger det for å slette
+    /// kvitteringsfilen når brukeren forlater skjemaet på en måte skjemaet selv ikke fanger opp. Se `DraftSheetTracker`.
+    @State private var draftSheet = DraftSheetTracker()
     /// Om oversikten er fanen som vises. Et utkast vises ikke fra en skjult fane; da venter
     /// det til fanen er byttet.
     @State private var isOnScreen = false
@@ -247,8 +250,13 @@ struct SubscriptionListView: View {
             .sensoryFeedback(.impact(weight: .medium), trigger: archiveFeedbackTrigger)
         }
         // På navigasjonsstakken og ikke på listen, så utkastet også vises når arkivet er åpnet.
-        .sheet(item: $presentedDraft, onDismiss: presentNextDraft) { draft in
-            SubscriptionFormView(draft: draft)
+        .sheet(item: $presentedDraft, onDismiss: draftSheetDismissed) { draft in
+            SubscriptionFormView(
+                draft: draft,
+                onSaved: { ReceiptInboxProcessor.shared.finish(draft) },
+                onDiscarded: { ReceiptInboxProcessor.shared.finish(draft) },
+                onSaveFailed: { draftSheet.saveFailed() }
+            )
         }
         // Køen går fra tom til ikke tom. Flere utkast etter hverandre vises via onDismiss over.
         .onChange(of: router.hasPendingDrafts) {
@@ -275,11 +283,24 @@ struct SubscriptionListView: View {
         }
     }
 
+    /// Arket med utkastet er helt lukket, uansett hvordan: lagret, forkastet, eller sveipet bort etter at alle endringer
+    /// var angret. Da er brukeren ferdig med kvitteringen, og filen slettes. Bare utkastet som ble vist, berøres,
+    /// aldri et som fortsatt står i køen, og aldri et som redigeres nå (arket er da ikke lukket).
+    private func draftSheetDismissed() {
+        if let draft = draftSheet.dismissed() {
+            ReceiptInboxProcessor.shared.finish(draft)
+        }
+        presentNextDraft()
+    }
+
     /// Viser det eldste ventende utkastet, men bare når oversikten vises i et aktivt vindu og
     /// ingen ark er åpne. Med flere vinduer på iPad tar da ikke et vindu i bakgrunnen utkastet.
+    /// Det venter også til forrige utkast-ark er helt lukket (`draftSheet.isFree`): `onDismiss` kommer først etter
+    /// lukkeanimasjonen og trenger å vite hvilket utkast det gjelder. `draftSheetDismissed` viser neste utkast selv.
     private func presentNextDraft() {
-        guard scenePhase == .active, isOnScreen, !isShowingSheet, let draft = router.dequeue() else { return }
+        guard scenePhase == .active, isOnScreen, !isShowingSheet, draftSheet.isFree, let draft = router.dequeue() else { return }
         presentedDraft = draft
+        draftSheet.presented(draft)
     }
 
     private var list: some View {

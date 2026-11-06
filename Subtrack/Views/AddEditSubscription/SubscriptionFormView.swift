@@ -21,11 +21,20 @@ struct SubscriptionFormView: View {
     /// Kalles når et nytt abonnement er lagret fra skjemaet, rett før det lukkes. Brukes av
     /// import fra kontoutskrift til å ta forslaget ut av listen.
     var onSaved: (() -> Void)? = nil
+    /// Kalles når brukeren forkaster skjemaet (Avbryt, og Forkast endringer hvis noe er endret). Brukes av delte
+    /// kvitteringer til å slette filen i innboksen.
+    var onDiscarded: (() -> Void)? = nil
+    /// Kalles når lagringen til disk feilet. `onSaved` kalles da ikke, så kvitteringsfilen i innboksen blir stående.
+    var onSaveFailed: (() -> Void)? = nil
 
     @State private var name = ""
     @State private var priceText = ""
     @State private var currencyCode = "NOK"
     @State private var billingInterval: BillingInterval = .monthly
+    /// Usann når utkastet ikke hadde noe intervall: da står «Velg intervall» i stedet for Månedlig, og
+    /// abonnementet kan ikke lagres før brukeren har valgt. Et intervall som ikke er valgt, skal aldri
+    /// bli «månedlig» i det stille, siden et årsbeløp regnet som månedlig gir tolv ganger for høye totaler.
+    @State private var intervalIsChosen = true
     @State private var nextRenewalDate = Date.now
     /// Når på, er `nextRenewalDate` datoen prøveperioden slutter og første betaling skjer.
     @State private var hasTrial = false
@@ -151,6 +160,19 @@ struct SubscriptionFormView: View {
 
     private var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && (price ?? 0) > 0 && !showsCancelLinkError
+            && intervalIsChosen
+    }
+
+    /// Valget i intervallvelgeren. `nil` er «Velg intervall» og finnes bare mens intervallet ikke er valgt.
+    private var intervalSelection: Binding<BillingInterval?> {
+        Binding(
+            get: { intervalIsChosen ? billingInterval : nil },
+            set: { value in
+                guard let value else { return }
+                billingInterval = value
+                intervalIsChosen = true
+            }
+        )
     }
 
     /// Om navnet fortsatt er det katalogen fylte inn for tjenesten som er valgt, uten hensyn til
@@ -178,7 +200,7 @@ struct SubscriptionFormView: View {
     /// når brukeren har endret noe av det selv. Har flere planer de samme verdiene, vinner den valgte.
     /// Styrer både planvelgeren og prisnotatet, så ingen av dem viser en pris som ikke står i skjemaet.
     private var matchingPlan: CatalogPlan? {
-        guard let plans = appliedService?.plans else { return nil }
+        guard intervalIsChosen, let plans = appliedService?.plans else { return nil }
         let matches = plans.filter {
             priceText == priceFieldText($0.price) && $0.currencyCode == currencyCode && $0.interval == billingInterval
         }
@@ -198,6 +220,7 @@ struct SubscriptionFormView: View {
                 priceText = priceFieldText(plan.price)
                 currencyCode = plan.currencyCode
                 billingInterval = plan.interval
+                intervalIsChosen = true
                 catalogFill?.priceText = priceText
             }
         )
@@ -255,9 +278,22 @@ struct SubscriptionFormView: View {
                             Text("\(code) – \(CurrencyConverter.displayName(for: code))").tag(code)
                         }
                     }
-                    Picker("Intervall", selection: $billingInterval) {
-                        ForEach(BillingInterval.allCases) { interval in
-                            Text(interval.displayName).tag(interval)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Picker("Intervall", selection: intervalSelection) {
+                            if !intervalIsChosen {
+                                Text("Velg intervall").tag(BillingInterval?.none)
+                            }
+                            ForEach(BillingInterval.allCases) { interval in
+                                Text(interval.displayName).tag(Optional(interval))
+                            }
+                        }
+                        .accessibilityIdentifier("intervalPicker")
+                        if !intervalIsChosen {
+                            // Sekundærfarge og ikon i stedet for oransje tekst, som ikke har nok kontrast.
+                            Label("Velg hvor ofte det trekkes, så totalene blir riktige.", systemImage: "exclamationmark.circle")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("intervalHint")
                         }
                     }
                     Toggle("Gratis prøveperiode", isOn: $hasTrial)
@@ -285,7 +321,8 @@ struct SubscriptionFormView: View {
                 } footer: {
                     if splitCount > 1, let price {
                         let share = RenewalCalculator.share(of: price, splitCount: splitCount)
-                        Text("Din del: \(share.formatted(.currency(code: currencyCode))) \(billingInterval.displayName.lowercased()). Totaler og statistikk bruker din del.")
+                        let perInterval = intervalIsChosen ? " \(billingInterval.displayName.lowercased())" : ""
+                        Text("Din del: \(share.formatted(.currency(code: currencyCode)))\(perInterval). Totaler og statistikk bruker din del.")
                     } else {
                         Text("Del kostnaden likt med andre, f.eks. et familieabonnement. Antallet inkluderer deg.")
                     }
@@ -377,7 +414,10 @@ struct SubscriptionFormView: View {
             // Varsel av samme grunn: som popover ved store tekststørrelser falt
             // "Fortsett å redigere" bort, så "Forkast endringer" var eneste valg.
             .alert("Forkaste endringene?", isPresented: $showsDiscardConfirmation) {
-                Button("Forkast endringer", role: .destructive) { dismiss() }
+                Button("Forkast endringer", role: .destructive) {
+                    onDiscarded?()
+                    dismiss()
+                }
                 Button("Fortsett å redigere", role: .cancel) {}
             } message: {
                 Text("Endringene du har gjort, blir ikke lagret.")
@@ -390,6 +430,7 @@ struct SubscriptionFormView: View {
                         if hasUnsavedChanges {
                             showsDiscardConfirmation = true
                         } else {
+                            onDiscarded?()
                             dismiss()
                         }
                     }
@@ -443,6 +484,8 @@ struct SubscriptionFormView: View {
         // regnes som endret, og Avbryt spør før det brukeren delte eller importerte, forkastes.
         if subscriptionToEdit == nil, let draft {
             apply(draft)
+            // Uten intervall i utkastet skal brukeren velge, ikke få Månedlig.
+            if draft.needsIntervalChoice { intervalIsChosen = false }
         }
     }
 
@@ -456,7 +499,10 @@ struct SubscriptionFormView: View {
         if let value = draft.name { name = value }
         if let value = draft.price { priceText = priceFieldText(value) }
         if let value = draft.currencyCode { currencyCode = value }
-        if let value = draft.interval { billingInterval = value }
+        if let value = draft.interval {
+            billingInterval = value
+            intervalIsChosen = true
+        }
         if let value = draft.kind { category = value }
         if let value = draft.nextRenewalDate { nextRenewalDate = value }
         if let value = draft.symbolName { symbolName = value }
@@ -573,7 +619,14 @@ struct SubscriptionFormView: View {
         }
         saveFeedbackTrigger += 1
         if subscriptionToEdit == nil {
-            onSaved?()
+            // Til disk før kvitteringsfilen slettes: autolagring kan ta et par sekunder, og dør appen i mellomtiden,
+            // er både abonnementet og kvitteringen borte.
+            do {
+                try modelContext.save()
+                onSaved?()
+            } catch {
+                onSaveFailed?()
+            }
         }
         dismiss()
     }

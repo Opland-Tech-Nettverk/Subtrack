@@ -173,6 +173,36 @@ final class SubtrackUITests: XCTestCase {
     }
 
     @MainActor
+    func testDraftWithoutAnIntervalCannotBeSavedUntilOneIsChosen() {
+        // Et utkast uten intervall (her fra snarveien, med et navn som ikke finnes i katalogen) skal ikke bli
+        // Månedlig i det stille: skjemaet ber om et valg, og Lagre er av til det er gjort.
+        app.terminate()
+        app.launchArguments += ["-UITestingShortcutDraft", "Brannvakt"]
+        app.launch()
+
+        let nameField = app.textFields["Navn"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5), "Skjemaet skulle vært åpnet med utkastet")
+        let priceField = app.textFields["Pris"]
+        priceField.tap()
+        priceField.typeText("99")
+
+        let save = app.buttons["Lagre"]
+        XCTAssertFalse(save.isEnabled, "Lagre skulle vært av før intervallet er valgt")
+        XCTAssertTrue(app.descendants(matching: .any)["intervalHint"].firstMatch.exists)
+
+        let picker = app.buttons["intervalPicker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        let yearly = app.buttons["Årlig"]
+        XCTAssertTrue(yearly.waitForExistence(timeout: 5))
+        yearly.tap()
+
+        XCTAssertTrue(save.isEnabled, "Lagre skulle vært på etter at intervallet er valgt")
+        save.tap()
+        XCTAssertTrue(row(named: "Brannvakt").waitForExistence(timeout: 5), "Brannvakt skulle vært i listen etter lagring")
+    }
+
+    @MainActor
     func testArchivingAndRestoringASubscription() {
         addSubscription(name: "Netflix", price: "149")
 

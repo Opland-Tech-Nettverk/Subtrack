@@ -39,6 +39,11 @@ jobs:
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
 
+      # The share extension's activation rule is a predicate string in Info.plist. Evaluate the exact string
+      # against mock shared items, so a typo or TRUEPREDICATE fails here and not in App Review.
+      - name: Check the share extension activation rule
+        run: swift scripts/check-share-activation-rule.swift SubtrackShare/Info.plist
+
       # The project has no shared scheme, so xcodebuild uses the one it creates per target.
       - name: List schemes
         run: xcodebuild -list -project Subtrack.xcodeproj
@@ -62,6 +67,45 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO
+
+      # The app deploys to iOS 17, but ReceiptModelEnrichment.swift uses FoundationModels (iOS 26). If one strong
+      # reference slips in (for instance from a macro expansion), the app fails to launch on iOS 17/18 with
+      # "Library not loaded". Build Release (the shipping configuration) and fail unless FoundationModels is
+      # loaded weakly (LC_LOAD_WEAK_DYLIB) or not linked at all. Fix if this fails: add
+      # `-weak_framework FoundationModels` to OTHER_LDFLAGS of the Subtrack target.
+      - name: Check that FoundationModels is weak-linked
+        run: |
+          xcodebuild build \
+            -project Subtrack.xcodeproj \
+            -scheme Subtrack \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/release" \
+            CODE_SIGNING_ALLOWED=NO
+          APP="$RUNNER_TEMP/release/Build/Products/Release-iphonesimulator/Subtrack.app"
+          ls "$APP"
+          # The share extension must be built and embedded by the app scheme (Embed Foundation Extensions).
+          for APPEX in SubtrackShare SubtrackWidgetExtension; do
+            [ -d "$APP/PlugIns/$APPEX.appex" ] || { echo "::error::$APPEX.appex is not embedded in the app."; exit 1; }
+          done
+          ls "$APP/PlugIns"
+          FAILED=0
+          CHECKED=0
+          for FILE in "$APP/Subtrack" "$APP"/*.dylib; do
+            [ -f "$FILE" ] || continue
+            CHECKED=$((CHECKED + 1))
+            echo "== $FILE"
+            otool -L "$FILE" | grep -i FoundationModels || echo "FoundationModels is not linked"
+            # Print the load command type for every load command that names FoundationModels.
+            CMDS=$(otool -l "$FILE" | awk '/^ +cmd /{cmd=$2} /^ +name / && /FoundationModels/{print cmd}')
+            echo "load commands: ${CMDS:-none}"
+            if echo "$CMDS" | grep -qv -e '^LC_LOAD_WEAK_DYLIB$' -e '^$'; then
+              echo "::error::FoundationModels is linked strongly in $FILE. Add -weak_framework FoundationModels to OTHER_LDFLAGS."
+              FAILED=1
+            fi
+          done
+          [ "$CHECKED" -gt 0 ] || { echo "::error::No app binary found to check."; exit 1; }
+          exit $FAILED
 
       - name: Pick a simulator
         id: sim

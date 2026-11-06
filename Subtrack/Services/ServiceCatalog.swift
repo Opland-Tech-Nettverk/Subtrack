@@ -180,7 +180,7 @@ nonisolated struct ServiceCatalog: Decodable, Equatable {
     /// Både teksten og aliasene (og navnet) renses med `MerchantText.normalized`. Et alias treffer
     /// bare som hele ord, så "max" treffer ikke "maxbo". Lengste alias vinner; ved likt lengde
     /// vinner tjenesten som står først i katalogen.
-    func match(merchantText: String) -> CatalogMatch? {
+    nonisolated func match(merchantText: String) -> CatalogMatch? {
         let normalized = MerchantText.normalized(merchantText)
         guard !normalized.isEmpty else { return nil }
         let padded = " \(normalized) "

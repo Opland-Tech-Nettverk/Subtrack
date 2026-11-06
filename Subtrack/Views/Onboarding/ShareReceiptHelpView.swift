@@ -1,34 +1,42 @@
 import SwiftUI
 
-/// Forklarer hvordan en kvittering deles til Subtrack. Delingen selv hører til en egen funksjon;
-/// denne skjermen viser bare veien dit.
+/// Forklarer hvordan en kvittering deles til Subtrack. Vises som ark fra tom-tilstanden og som en side
+/// i Innstillinger, så veibeskrivelsen alltid er til å finne.
 struct ShareReceiptHelpView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Del en kvittering")
-                        .font(.rounded(.title))
-                    step(1, "Åpne kvitteringen i Mail, Safari, Filer eller Bilder.")
-                    step(2, "Trykk på del-knappen og velg Subtrack.")
-                    step(3, "Åpne Subtrack, så er skjemaet fylt ut. Du ser over og lagrer.")
-                    Label("Teksten leses bare på telefonen, og ingenting legges inn før du har godkjent det.", systemImage: "lock.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+            ShareReceiptHelpContent()
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Ferdig") { dismiss() }
+                    }
                 }
-                .padding(20)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .background(Color.canvas)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Ferdig") { dismiss() }
-                }
-            }
         }
+    }
+}
+
+/// Selve veibeskrivelsen, uten egen navigasjon, så den kan brukes både i arket og i Innstillinger.
+struct ShareReceiptHelpContent: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Del en kvittering")
+                    .font(.rounded(.title))
+                    .accessibilityAddTraits(.isHeader)
+                step(1, "Marker teksten i e-posten, eller åpne PDF-en eller skjermbildet i Mail, Filer eller Bilder, og trykk på del-knappen.")
+                step(2, "Velg SubTrack. Står den ikke blant appene, trykk på «Mer».")
+                step(3, "Åpne SubTrack. Skjemaet er fylt ut, så du ser over og lagrer. Det som ikke stod i kvitteringen, står tomt.")
+                Label("Teksten leses bare på telefonen. Den ligger kryptert og utenfor sikkerhetskopien til du åpner SubTrack, slettes senest etter 7 dager, og ingenting legges inn før du har godkjent det.", systemImage: "lock.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color.canvas)
     }
 
     private func step(_ number: Int, _ text: String) -> some View {

@@ -55,6 +55,21 @@ struct SettingsView: View {
                 } footer: {
                     Text("Finn abonnementer i en kontoutskrift fra nettbanken. Filen leses bare på telefonen og lagres ikke.")
                 }
+
+                Section {
+                    NavigationLink {
+                        ShareReceiptHelpContent()
+                            .navigationTitle("Del en kvittering")
+                            .navigationBarTitleDisplayMode(.inline)
+                    } label: {
+                        Label("Slik deler du en kvittering", systemImage: "square.and.arrow.up")
+                    }
+                    .accessibilityIdentifier("settingsShareReceiptHelp")
+                } header: {
+                    Text("Del en kvittering")
+                } footer: {
+                    Text("Del teksten i en e-post, en PDF eller et skjermbilde med SubTrack, så fylles skjemaet ut. Teksten leses bare på telefonen.")
+                }
             }
             .navigationTitle("Innstillinger")
             .navigationBarTitleDisplayMode(.inline)

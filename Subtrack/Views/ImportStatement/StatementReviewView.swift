@@ -68,7 +68,7 @@ struct StatementReviewView: View {
         } description: {
             VStack(spacing: 8) {
                 Text(periodText)
-                Text("Subtrack fant ingen betalinger som kommer igjen med jevne mellomrom og omtrent samme beløp.")
+                Text("SubTrack fant ingen betalinger som kommer igjen med jevne mellomrom og omtrent samme beløp.")
                 if analysis.isShortPeriod {
                     Text("Perioden er kortere enn to måneder. En fil med flere måneder gir bedre forslag.")
                 }

@@ -62,6 +62,10 @@ struct SubtrackApp: App {
                     .onChange(of: scenePhase, initial: true) { _, phase in
                         guard phase == .active else { return }
                         Task { await exchangeRates.refreshIfNeeded() }
+                        // Kvitteringer delt fra andre apper ligger i innboksen. UI-testene rører ikke den.
+                        if !AppEnvironment.isUITesting {
+                            Task { await ReceiptInboxProcessor.shared.processInbox() }
+                        }
                     }
             case .failed(let errorDescription):
                 DatabaseErrorView(errorDescription: errorDescription)
