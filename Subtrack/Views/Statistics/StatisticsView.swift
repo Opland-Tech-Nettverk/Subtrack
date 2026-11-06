@@ -105,9 +105,14 @@ struct StatisticsView: View {
     private func savingsCard(_ viewModel: StatisticsViewModel) -> some View {
         let savings = viewModel.savings()
         return VStack(alignment: .leading, spacing: 6) {
-            Label("Spart totalt", systemImage: "leaf.fill")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
+            Label {
+                Text("Spart totalt")
+                    .foregroundStyle(.secondary)
+            } icon: {
+                Image(systemName: "leaf.fill")
+                    .foregroundStyle(Color.savings)
+            }
+            .font(.subheadline.weight(.medium))
             CountingAmount(amount: savings.total, currencyCode: mainCurrency)
             if savings.cancelledCount == 0 {
                 Text("Avslutt et abonnement, så ser du her hva du sparer.")
@@ -220,6 +225,7 @@ struct StatisticsView: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.6)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .frame(maxWidth: 130)
         .allowsHitTesting(false)
     }

@@ -98,6 +98,7 @@ struct CalendarView: View {
                     }
                 }
             }
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .motion(.smooth, value: month)
         }
         .padding(DS.cardPadding)
@@ -155,6 +156,7 @@ struct CalendarView: View {
                     .frame(maxWidth: .infinity)
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .accessibilityHidden(true)
     }
 
@@ -224,6 +226,13 @@ struct CalendarView: View {
     }
 }
 
+private extension Date {
+    /// Dagens nummer uten ordenstegn: «6» i stedet for «6.».
+    var dayNumberText: String {
+        String(Calendar.current.component(.day, from: self))
+    }
+}
+
 private extension String {
     /// «november 2026» blir «November 2026».
     var capitalizedFirst: String {
@@ -250,7 +259,7 @@ private struct DayCell: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Text(date.formatted(.dateTime.day()))
+                Text(date.dayNumberText)
                     .font(.amount(.callout, weight: isToday ? .bold : .regular))
                     .frame(minWidth: 30, minHeight: 30)
                     .background {
@@ -303,7 +312,7 @@ private struct TimelineRow: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 0) {
                 if showsDate {
-                    Text(charge.date.formatted(.dateTime.day()))
+                    Text(charge.date.dayNumberText)
                         .font(.amount(.title3, weight: .bold))
                     Text(charge.date.formatted(.dateTime.weekday(.abbreviated)))
                         .font(.caption2)

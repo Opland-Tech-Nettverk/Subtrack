@@ -250,7 +250,7 @@ private struct SuggestionRowContent: View {
             Text(suggestion.name)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Color.primary)
-            Text("\(suggestion.interval.displayName) · \(lastChargeText)")
+            Text(lastChargeText)
                 .font(.caption)
                 .foregroundStyle(Color.secondary)
             badges
@@ -258,6 +258,9 @@ private struct SuggestionRowContent: View {
             Text(priceText)
                 .font(.amount(.body))
                 .foregroundStyle(Color.primary)
+            Text(suggestion.interval.displayName)
+                .font(.caption)
+                .foregroundStyle(Color.secondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenText)

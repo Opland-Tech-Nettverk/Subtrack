@@ -72,10 +72,10 @@ struct OnboardingView: View {
         ZStack {
             SubscriptionTile(symbolName: "music.note", color: Color(hex: "#BF5AF2") ?? .purple, size: 64)
                 .rotationEffect(.degrees(-12))
-                .offset(x: -52, y: 8)
+                .offset(x: -62, y: 10)
             SubscriptionTile(symbolName: "icloud", color: Color(hex: "#40C8E0") ?? .cyan, size: 64)
                 .rotationEffect(.degrees(10))
-                .offset(x: 52, y: 8)
+                .offset(x: 62, y: 10)
             SubscriptionTile(symbolName: "play.tv", color: Color(hex: "#FF453A") ?? .red, progress: 0.7, size: 72)
         }
         .frame(height: 112)

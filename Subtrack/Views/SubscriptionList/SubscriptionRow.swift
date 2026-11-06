@@ -29,7 +29,8 @@ struct SubscriptionRow: View {
                 symbolName: subscription.displaySymbolName,
                 color: Color.tile(for: subscription),
                 progress: subscription.isActive ? subscription.renewalProgress() : nil,
-                isDimmed: !subscription.isActive
+                isDimmed: !subscription.isActive,
+                reservesRing: true
             )
         } title: {
             // Bare ikonet dempes for pausede abonnement. Demping av hele raden ga sekundærteksten

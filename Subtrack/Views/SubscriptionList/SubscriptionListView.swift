@@ -342,8 +342,11 @@ struct SubscriptionListView: View {
     }
 
     private var archiveLabel: some View {
-        HStack(spacing: 12) {
-            SubscriptionTile(symbolName: "archivebox", color: .gray, size: 36)
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
+            SubscriptionTile(symbolName: "archivebox", color: .gray, reservesRing: true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Avsluttede (\(archivedSubscriptions.count))")
                     .font(.body.weight(.semibold))

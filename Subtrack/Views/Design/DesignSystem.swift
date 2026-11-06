@@ -135,7 +135,7 @@ struct RowCardBackground: View {
             .fill(Color.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(isHighlighted ? Color.accentColor.opacity(0.7) : Color.cardStroke, lineWidth: isHighlighted ? 1.5 : 1)
+                    .strokeBorder(isHighlighted ? Color.accentColor.opacity(0.45) : Color.cardStroke, lineWidth: isHighlighted ? 1.25 : 1)
             }
     }
 }
@@ -241,11 +241,17 @@ struct SubscriptionTile: View {
     /// 0...1 for ringen rundt flisa, eller `nil` uten ring.
     var progress: Double? = nil
     var isDimmed = false
+    /// Setter av plass til ringen også uten fremdrift, så fliser står likt på tvers av rader.
+    var reservesRing = false
 
     @ScaledMetric private var tileSide: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(symbolName: String, color: Color, progress: Double? = nil, isDimmed: Bool = false, size: CGFloat = 40) {
+    init(
+        symbolName: String, color: Color, progress: Double? = nil, isDimmed: Bool = false,
+        reservesRing: Bool = false, size: CGFloat = 40
+    ) {
+        self.reservesRing = reservesRing
         self.symbolName = symbolName
         self.color = color
         self.progress = progress
@@ -258,14 +264,16 @@ struct SubscriptionTile: View {
     private var ringWidth: CGFloat { max(2.5, side * 0.07) }
     private var ringGap: CGFloat { 3 }
     private var outerSide: CGFloat {
-        progress == nil ? side : side + 2 * (ringWidth + ringGap)
+        (progress == nil && !reservesRing) ? side : side + 2 * (ringWidth + ringGap)
     }
 
     var body: some View {
         ZStack {
-            if let progress {
+            if progress != nil || reservesRing {
                 Circle()
                     .stroke(color.opacity(0.2), lineWidth: ringWidth)
+            }
+            if let progress {
                 Circle()
                     .trim(from: 0, to: max(progress, 0.015))
                     .stroke(color, style: StrokeStyle(lineWidth: ringWidth, lineCap: .round))

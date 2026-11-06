@@ -63,7 +63,7 @@ struct SubscriptionDetailView: View {
         .background(alignment: .top) {
             // Toppen i abonnementets farge: en myk gradient som går ut mot bakgrunnen.
             LinearGradient(
-                colors: [color.opacity(0.38), color.opacity(0)],
+                colors: [color.opacity(0.3), color.opacity(0)],
                 startPoint: .top,
                 endPoint: .bottom
             )
