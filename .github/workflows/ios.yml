@@ -219,11 +219,10 @@ jobs:
           path: screenshots
           if-no-files-found: warn
 
-  # The main UI flows (SubtrackUITests). Not blocking yet: they have not run in CI before.
+  # The main UI flows (SubtrackUITests).
   ui-tests:
     runs-on: xcode-27
     timeout-minutes: 40
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -239,7 +238,7 @@ jobs:
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
       # The image only lists "iPhone Duo" (two displays) as an iPhone, so make a normal phone for
-      # realistic screenshots: the newest plain "iPhone NN Pro" type on the newest iOS runtime.
+      # the UI tests: the newest plain "iPhone NN Pro" type on the newest iOS runtime.
       - name: Create a phone simulator
         id: sim
         run: |
@@ -269,14 +268,17 @@ jobs:
       - name: Run UI tests
         run: |
           rm -rf "$RUNNER_TEMP/ui.xcresult"
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
           xcodebuild test \
             -project Subtrack.xcodeproj \
             -scheme Subtrack \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:SubtrackUITests \
             -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 120 \
-            -maximum-test-execution-time-allowance 180 \
+            -default-test-execution-time-allowance 240 \
+            -maximum-test-execution-time-allowance 700 \
             -parallel-testing-enabled NO \
             -resultBundlePath "$RUNNER_TEMP/ui.xcresult" \
             CODE_SIGNING_ALLOWED=NO

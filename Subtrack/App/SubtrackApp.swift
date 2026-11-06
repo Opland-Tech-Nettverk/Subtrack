@@ -25,6 +25,10 @@ struct SubtrackApp: App {
         NotificationScheduler.registerCategories()
         #if DEBUG
         CloudKitSchemaInitializer.runIfRequested()
+        // UI-testene slår av UIKit-animasjoner, så XCUITest lettere regner appen som rolig mens en meny er åpen.
+        if ProcessInfo.processInfo.arguments.contains("-UITestingNoAnimations") {
+            UIView.setAnimationsEnabled(false)
+        }
         #endif
         let setup = Self.makeModelContainer()
         modelContainer = setup.container
