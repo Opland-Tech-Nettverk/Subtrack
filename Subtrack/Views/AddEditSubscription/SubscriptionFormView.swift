@@ -18,6 +18,9 @@ struct SubscriptionFormView: View {
     /// Et delvis utfylt abonnement, f.eks. fra tjenestekatalogen, som fyller skjemaet ved lasting.
     /// Brukes bare for nye abonnementer; ved redigering ignoreres det.
     var draft: SubscriptionDraft? = nil
+    /// Kalles når et nytt abonnement er lagret fra skjemaet, rett før det lukkes. Brukes av
+    /// import fra kontoutskrift til å ta forslaget ut av listen.
+    var onSaved: (() -> Void)? = nil
 
     @State private var name = ""
     @State private var priceText = ""
@@ -569,6 +572,9 @@ struct SubscriptionFormView: View {
             await NotificationScheduler.reschedule(using: modelContext)
         }
         saveFeedbackTrigger += 1
+        if subscriptionToEdit == nil {
+            onSaved?()
+        }
         dismiss()
     }
 

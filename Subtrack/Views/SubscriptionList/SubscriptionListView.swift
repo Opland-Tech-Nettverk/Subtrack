@@ -17,6 +17,7 @@ struct SubscriptionListView: View {
     @State private var editingSubscription: Subscription?
     @State private var isAddingSubscription = false
     @State private var isShowingSettings = false
+    @State private var isImportingStatement = false
     /// Utkastet fra `AddSubscriptionRouter` som vises i skjemaet nå, f.eks. fra snarveien.
     @State private var presentedDraft: SubscriptionDraft?
     /// Om oversikten er fanen som vises. Et utkast vises ikke fra en skjult fane; da venter
@@ -62,7 +63,8 @@ struct SubscriptionListView: View {
     /// Et ark herfra er åpent. Et nytt utkast venter da til arket er lukket, så det brukeren
     /// holder på med, aldri blir erstattet.
     private var isShowingSheet: Bool {
-        isAddingSubscription || editingSubscription != nil || isShowingSettings || presentedDraft != nil
+        isAddingSubscription || editingSubscription != nil || isShowingSettings || isImportingStatement
+            || presentedDraft != nil
     }
 
     private var isSearching: Bool {
@@ -137,6 +139,13 @@ struct SubscriptionListView: View {
                                 Label(order.displayName, systemImage: order.symbolName).tag(order)
                             }
                         }
+                        Divider()
+                        Button {
+                            isImportingStatement = true
+                        } label: {
+                            Label("Importer fra kontoutskrift", systemImage: "doc.text.magnifyingglass")
+                        }
+                        .accessibilityIdentifier("importStatement")
                     } label: {
                         Label("Sorter", systemImage: "arrow.up.arrow.down")
                     }
@@ -162,6 +171,9 @@ struct SubscriptionListView: View {
             }
             .sheet(isPresented: $isShowingSettings, onDismiss: presentNextDraft) {
                 SettingsView()
+            }
+            .sheet(isPresented: $isImportingStatement, onDismiss: presentNextDraft) {
+                StatementImportView()
             }
             .sensoryFeedback(.impact(weight: .light), trigger: pauseFeedbackTrigger)
             .sensoryFeedback(.impact(weight: .medium), trigger: archiveFeedbackTrigger)

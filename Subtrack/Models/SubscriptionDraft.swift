@@ -2,8 +2,8 @@ import Foundation
 
 /// Et delvis utfylt nytt abonnement som brukeren går gjennom i skjemaet før det lagres.
 /// Felt som er `nil`, beholder skjemaets standardverdi.
-struct SubscriptionDraft: Identifiable, Equatable {
-    enum Source: String, Equatable {
+nonisolated struct SubscriptionDraft: Identifiable, Equatable {
+    nonisolated enum Source: String, Equatable {
         case catalog, shortcut, receipt, bankStatement
     }
 

@@ -1,0 +1,2 @@
+# Fixtures for the bank statement tests: keep the exact bytes (encoding, BOM, line endings).
+SubtrackTests/Fixtures/** -text

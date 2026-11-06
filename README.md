@@ -59,6 +59,17 @@ Appen er skrevet i Swift og SwiftUI, bruker bare Apples egne rammeverk og har br
 - **Ingen endringer går tapt ved et uhell:** har du endret noe, må du bekrefte før skjemaet forkastes, og det kan ikke sveipes bort.
 - **«Avslutt abonnement»** nederst i skjemaet for et eksisterende abonnement flytter det til arkivet etter en bekreftelse, med samme angre-banner som i listen. Andre ulagrede endringer i skjemaet forkastes da.
 
+### Import fra kontoutskrift
+
+Velg en CSV-fil (eller tekstfil) du har eksportert fra nettbanken, så leter Subtrack etter betalinger som kommer igjen og foreslår dem som abonnementer.
+
+- **Tilgjengelig** fra menyen i Oversikt og fra Innstillinger, med en kort forklaring på hvordan man eksporterer fra nettbanken.
+- **Kolonnene gjenkjennes fra overskriftene**, ikke fra hvilken bank filen kommer fra: dato, tekst og beløp, med eller uten egne kolonner for inn og ut. Filen kan være UTF-8 eller Windows-1252/ISO-8859-1, og dato og beløp tolkes slik norske banker skriver dem.
+- **Forslag, ikke innlegging:** forslagene vises som en liste med de sikreste først og huket av, og de middels sikre uhuket. Trykk på en rad for å åpne det utfylte skjemaet, eller bruk «Legg til valgte» for å legge inn de som er huket av. Ingenting legges inn uten at du har sett og godkjent det.
+- **Pris og valuta:** treffer forslaget en tjeneste i katalogen med omtrent samme beløp, brukes katalogens pris. Ellers brukes beløpet i originalvaluta når det er likt hver gang (utenlandske tjenester varierer i kroner med kursen), og ellers siste beløp.
+- **Ingen dubletter:** tjenester du allerede har lagt inn, foreslås ikke på nytt.
+- **Alt skjer på telefonen.** Filen og betalingene ligger bare i minnet og forsvinner når skjermen lukkes. Ingenting fra utskriften lagres, logges eller sendes noe sted.
+
 ### Valutaer og omregning
 
 - Abonnement kan legges inn i **30 valutaer**. Totaler, sortering, statistikk og besparelser regnes om til **hovedvalutaen** du velger i innstillingene (standard er NOK).
@@ -260,17 +271,19 @@ Subtrack/
 │   ├── CurrencyConverter.swift          Omregning og støttede valutaer
 │   ├── WidgetSnapshotStore.swift        Øyeblikksbilde for widgeten
 │   ├── PriceParser.swift                Tolking av priser
-│   └── CancelLink.swift                 Tolking av avslutningslenker
+│   ├── CancelLink.swift                 Tolking av avslutningslenker
+│   └── BankStatement/                   Import av kontoutskrift: avkoding, CSV, kolonner, mottakere og gjentakende trekk
 ├── Views/
 │   ├── SubscriptionList/                Oversikten, rader, sortering, sammendrag og arkiv
 │   ├── AddEditSubscription/             Skjemaet for nytt og eksisterende abonnement
+│   ├── ImportStatement/                 Import fra kontoutskrift: forklaring, filvalg og gjennomgang av forslag
 │   ├── Statistics/                      Statistikkskjermen og beregningene bak den
 │   ├── Settings/                        Hovedvaluta og glass-styrke
 │   ├── Shared/                          Glassbakgrunn, ikoner og farger, tomtilstand, lesbar bredde
 │   └── MainTabView.swift                Fanene Oversikt og Statistikk
 └── PrivacyInfo.xcprivacy                Personvernmanifest
 SubtrackWidget/                          Widget-utvidelsen «Neste trekk»
-SubtrackTests/                           Enhetstester (Swift Testing)
+SubtrackTests/                           Enhetstester (Swift Testing), med syntetiske kontoutskrifter i Fixtures/
 SubtrackUITests/                         UI-tester (XCTest)
 ```
 
@@ -287,6 +300,7 @@ SubtrackUITests/                         UI-tester (XCTest)
 - **Én nettforespørsel:** det eneste appen selv sender over nettet, er en forespørsel om valutakurser til Frankfurter. Den inneholder ingen personopplysninger, men som ved all nettrafikk ser tjenesten IP-adressen til enheten.
 - **Ingen sporing, ingen analyse og ingen tredjepartsbiblioteker.** Personvernmanifestet oppgir ingen sporing og ingen innsamlede datatyper.
 - Innstillinger, lagrede valutakurser og widget-data ligger lokalt på enheten.
+- **Kontoutskrifter lagres aldri.** En fil du importerer, leses bare i minnet på enheten, og verken filen, betalingene eller noe annet fra den lagres, logges eller sendes noe sted. Bare abonnementene du selv velger å legge til, blir lagret.
 
 ## Bidrag og tilbakemeldinger
 
