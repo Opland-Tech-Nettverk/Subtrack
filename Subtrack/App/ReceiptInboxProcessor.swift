@@ -21,11 +21,11 @@ final class ReceiptInboxProcessor {
         makeDraft: @escaping (String) async -> SubscriptionDraft = { text in
             await ReceiptParser.draft(fromReceiptText: text)
         },
-        router: AddSubscriptionRouter = .shared
+        router: AddSubscriptionRouter? = nil
     ) {
         self.inbox = inbox
         self.makeDraft = makeDraft
-        self.router = router
+        self.router = router ?? AddSubscriptionRouter.shared
     }
 
     /// Antall nye utkast som ble lagt i køen. Et kall mens et annet pågår, gjør ingenting og gir 0.
