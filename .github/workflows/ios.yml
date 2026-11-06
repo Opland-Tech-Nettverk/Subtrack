@@ -274,6 +274,7 @@ jobs:
             -scheme Subtrack \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:SubtrackUITests \
+            -test-timeouts-enabled YES \\n            -default-test-execution-time-allowance 120 \\n            -maximum-test-execution-time-allowance 180 \\n            -parallel-testing-enabled NO 
             -resultBundlePath "$RUNNER_TEMP/ui.xcresult" \
             CODE_SIGNING_ALLOWED=NO
 

@@ -244,23 +244,27 @@ private struct SuggestionRowContent: View {
     }
 
     var body: some View {
-        AdaptiveRowLayout(isStacked: isStacked) {
-            SubscriptionTile(symbolName: symbolName, color: color, size: 38)
-        } title: {
-            Text(suggestion.name)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(Color.primary)
-            Text(lastChargeText)
-                .font(.caption)
-                .foregroundStyle(Color.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            AdaptiveRowLayout(isStacked: isStacked) {
+                SubscriptionTile(symbolName: symbolName, color: color, size: 38)
+            } title: {
+                Text(suggestion.name)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.primary)
+                Text(lastChargeText)
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            } detail: {
+                Text(priceText)
+                    .font(.amount(.body))
+                    .foregroundStyle(Color.primary)
+                Text(suggestion.interval.displayName)
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            }
+            // Merkene på egen linje under raden, så «Ligner «…»» får hele bredden.
             badges
-        } detail: {
-            Text(priceText)
-                .font(.amount(.body))
-                .foregroundStyle(Color.primary)
-            Text(suggestion.interval.displayName)
-                .font(.caption)
-                .foregroundStyle(Color.secondary)
+                .padding(.leading, isStacked ? 0 : 50)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenText)
