@@ -79,6 +79,11 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
           APP="$RUNNER_TEMP/release/Build/Products/Release-iphonesimulator/Subtrack.app"
           ls "$APP"
+          # The share extension must be built and embedded by the app scheme (Embed Foundation Extensions).
+          for APPEX in SubtrackShare SubtrackWidgetExtension; do
+            [ -d "$APP/PlugIns/$APPEX.appex" ] || { echo "::error::$APPEX.appex is not embedded in the app."; exit 1; }
+          done
+          ls "$APP/PlugIns"
           FAILED=0
           CHECKED=0
           for FILE in "$APP/Subtrack" "$APP"/*.dylib; do

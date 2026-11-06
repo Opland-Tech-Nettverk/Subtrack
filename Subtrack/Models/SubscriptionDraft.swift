@@ -22,3 +22,9 @@ nonisolated struct SubscriptionDraft: Identifiable, Equatable {
     /// Katalogtjenesten utkastet kom fra, om noen. Brukes av skjemaet til å vise planvalg.
     var catalogServiceID: String? = nil
 }
+
+extension SubscriptionDraft {
+    /// Skjemaet må la brukeren velge intervall når utkastet ikke har noe («Velg intervall»), i stedet for å
+    /// vise Månedlig. Gjelder utkast fra kvittering, snarvei og katalogtjenester uten fast pris.
+    nonisolated var needsIntervalChoice: Bool { interval == nil }
+}

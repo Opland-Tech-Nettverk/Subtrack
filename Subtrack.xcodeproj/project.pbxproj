@@ -109,6 +109,11 @@
 			path = SubtrackShare;
 			sourceTree = "<group>";
 		};
+		0A794A40309E7D37005C97C9 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		0ABD230C3082666600BC42DA /* SubtrackUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SubtrackUITests;
@@ -169,6 +174,7 @@
 				0AFF2E46307F97B900CE1C7A /* SubtrackWidget */,
 				0ABD230C3082666600BC42DA /* SubtrackUITests */,
 				0A794A21309E7D37005C97C9 /* SubtrackShare */,
+				0A794A40309E7D37005C97C9 /* Shared */,
 				0AFF2E41307F97B900CE1C7A /* Frameworks */,
 				000000000000000000000020 /* Products */,
 			);
@@ -215,6 +221,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* Subtrack */,
+				0A794A40309E7D37005C97C9 /* Shared */,
 			);
 			name = Subtrack;
 			productName = MyApp;
@@ -233,6 +240,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				0A794A21309E7D37005C97C9 /* SubtrackShare */,
+				0A794A40309E7D37005C97C9 /* Shared */,
 			);
 			name = SubtrackShare;
 			productName = SubtrackShare;
@@ -662,13 +670,13 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = SubtrackShare/SubtrackShare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = 76M3G78HV8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SubtrackShare/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = SubtrackShare;
+				INFOPLIST_KEY_CFBundleDisplayName = SubTrack;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -695,13 +703,13 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = SubtrackShare/SubtrackShare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = 76M3G78HV8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SubtrackShare/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = SubtrackShare;
+				INFOPLIST_KEY_CFBundleDisplayName = SubTrack;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

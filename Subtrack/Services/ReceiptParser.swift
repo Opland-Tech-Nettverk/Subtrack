@@ -705,7 +705,11 @@ extension ReceiptParser {
         calendar: Calendar = .current
     ) async -> SubscriptionDraft {
         let catalog = catalog ?? ServiceCatalog.bundled
-        let rules = parse(text, catalog: catalog, now: now, calendar: calendar)
+        // Reglene kjøres på en bakgrunnsoppgave: 20 000 tegn betyr hundrevis av linjer å sjekke mot katalogen,
+        // og det skal ikke stoppe hovedtråden når appen åpnes.
+        let rules = await Task.detached(priority: .userInitiated) {
+            ReceiptParser.parse(text, catalog: catalog, now: now, calendar: calendar)
+        }.value
         let fields = await ReceiptEnrichment.enrich(rules, text: text, catalog: catalog, now: now, calendar: calendar)
         return fields.draft(catalog: catalog)
     }
