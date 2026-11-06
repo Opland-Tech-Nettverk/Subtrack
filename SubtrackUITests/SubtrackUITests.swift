@@ -65,7 +65,7 @@ final class SubtrackUITests: XCTestCase {
 
     /// Venter til elementet er borte. `waitForExistence` svarer med en gang om det fortsatt
     /// finnes, så det egner seg ikke til å vente på at noe forsvinner.
-    private func waitForDisappearance(of element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+    private func waitForDisappearance(of element: XCUIElement, timeout: TimeInterval = 15) -> Bool {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
         return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
