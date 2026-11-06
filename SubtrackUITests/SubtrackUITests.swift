@@ -230,7 +230,11 @@ final class SubtrackUITests: XCTestCase {
         let edit = app.buttons["Rediger"]
         XCTAssertTrue(edit.waitForExistence(timeout: 5))
         edit.tap()
+        // Knappen ligger nederst i skjemaet og finnes ikke i hierarkiet før det er rullet dit.
         let archive = app.buttons["Avslutt abonnement"]
+        for _ in 0..<6 where !archive.exists || !archive.isHittable {
+            app.swipeUp()
+        }
         XCTAssertTrue(archive.waitForExistence(timeout: 5))
         archive.tap()
         let confirm = app.alerts.buttons["Avslutt"]
