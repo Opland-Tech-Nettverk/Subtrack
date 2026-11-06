@@ -192,6 +192,198 @@ struct ReceiptParserTests {
         #expect(fields.nextRenewalDate == date(2027, 3, 15))
     }
 
+    // MARK: - E-postadresser og mottakerlinjer (fix 1)
+
+    @Test func appleIDEmailDoesNotTurnAnAppReceiptIntoICloud() {
+        let fields = parse("""
+        Fra: Apple <no_reply@email.apple.com>
+        Til: ola@icloud.com
+        Emne: Din kvittering fra Apple
+
+        Apple
+        Apple-ID: ola@icloud.com
+        KVITTERING
+
+        Headspace
+        Årlig abonnement
+        899,00 kr
+        Totalt 899,00 kr
+        """)
+
+        #expect(fields.catalogServiceID == nil)
+        #expect(fields.price == Decimal(string: "899.00"))
+        #expect(fields.interval == .yearly)
+    }
+
+    @Test func appleIDEmailDoesNotHideTheRealServiceInTheBody() {
+        let fields = parse("""
+        Fra: Apple <no_reply@email.apple.com>
+        Til: ola@icloud.com
+        Apple
+        Apple-ID: ola@icloud.com
+        KVITTERING
+        DATO 15.10.2026
+        ORDRE-ID MX5ABC1234
+
+        Spotify
+        Premium Individual (Månedlig)
+        Totalt 109,00 kr
+        """)
+
+        #expect(fields.catalogServiceID == "spotify")
+    }
+
+    @Test func realICloudReceiptStillMatches() {
+        let fields = parse("""
+        Fra: Apple <no_reply@email.apple.com>
+        Til: ola@icloud.com
+        Apple
+        KVITTERING
+
+        iCloud+
+        200 GB (Månedlig)
+        Totalt 39,00 kr
+        """)
+
+        #expect(fields.catalogServiceID == "icloud")
+    }
+
+    @Test func senderDomainStillMatchesTheCatalog() {
+        let fields = parse("""
+        From: info@mailer.netflix.com
+        Subject: Receipt
+        Total: NOK 149.00
+        """)
+
+        #expect(fields.catalogServiceID == "netflix")
+    }
+
+    @Test func matchableLinesDropRecipientsAndAddresses() {
+        let lines = ReceiptParser.matchableLines([
+            "Til: ola@icloud.com", "To: ola@icloud.com", "Cc: kari@icloud.com",
+            "Apple-ID: ola@icloud.com", "Fra: Netflix <info@mailer.netflix.com>"
+        ])
+
+        #expect(lines.count == 2)
+        #expect(!lines[0].contains("icloud"))
+        #expect(lines[1].contains("mailer.netflix.com"))
+    }
+
+    // MARK: - Intervall og beløp hører sammen (fix 4)
+
+    @Test(arguments: [
+        ("Årsabonnement Brannvakt 1 188 kr", BillingInterval.yearly),
+        ("Årspris 899 kr", .yearly),
+        ("Totalt 1 188 kr (12 måneder)", .yearly),
+        ("1 188 kr / 12 mnd", .yearly),
+        ("Billed 12 months in advance", .yearly),
+        ("Månedsabonnement 99 kr", .monthly),
+        ("99 kr/md", .monthly),
+        ("99 kr/md.", .monthly),
+        ("99 kr per md", .monthly),
+        ("Hver md trekkes beløpet", .monthly),
+        ("$9.99 a month", .monthly),
+        ("9.99 USD a month", .monthly),
+        ("$59.99 a year", .yearly),
+        ("$1.99 a week", .weekly),
+        ("299 kr/kvartal", .quarterly)
+    ])
+    func readsMoreNorwegianAndEnglishIntervalForms(text: String, expected: BillingInterval) {
+        #expect(ReceiptParser.interval(in: text) == expected)
+    }
+
+    @Test(arguments: [
+        "We'll remind you a week before your trial ends",
+        "Cancel a month before renewal to avoid charges",
+        "12 måneders binding",
+        "Used by millions a year"
+    ])
+    func bareEnglishPhrasesAndBindingPeriodsAreNotIntervals(text: String) {
+        #expect(ReceiptParser.interval(in: text) == nil)
+    }
+
+    @Test func trialReminderDoesNotHideTheRealInterval() {
+        let fields = parse("""
+        Brannvakt Pluss
+        We'll remind you a week before your trial ends.
+        Billed $59.99 yearly
+        Total: $59.99
+        """)
+
+        #expect(fields.interval == .yearly)
+    }
+
+    @Test func intervalOnTheAmountsOwnLineWinsOverTheRestOfTheText() {
+        let fields = parse("""
+        Pris: 99 kr per måned
+        Totalt belastet i dag: 1 188 kr (12 måneder)
+        """)
+
+        #expect(fields.price == Decimal(string: "1188"))
+        #expect(fields.interval == .yearly)
+    }
+
+    @Test func yearlyPlanWithoutAnyPhraseButWithNorwegianYearWord() {
+        let fields = parse("""
+        Fra: Brannvakt Pluss <kvittering@brannvakt.no>
+        Årsabonnement Brannvakt 1 188 kr
+        """)
+
+        #expect(fields.price == Decimal(string: "1188"))
+        #expect(fields.interval == .yearly)
+    }
+
+    @Test func intervalOnTheLineBeforeAnAmountOnlyLineIsPaired() {
+        let fields = parse("""
+        Abonnement per måned
+        99 kr
+        Totalt for 12 måneder
+        1 188 kr
+        """)
+
+        // «Totalt»-linjen vinner og har sitt eget intervall.
+        #expect(fields.price == Decimal(string: "1188"))
+        #expect(fields.interval == .yearly)
+    }
+
+    // MARK: - Mindre rettelser
+
+    @Test func exclusiveVatAbbreviationAndSubTotalAreNotTheTotal() {
+        let fields = parse("""
+        Sub Total 100,00 kr
+        Totalt eks. mva 119,20 kr
+        Totalt 149,00 kr
+        """)
+
+        #expect(fields.price == Decimal(string: "149.00"))
+    }
+
+    @Test func dayMonthWithOfIsRead() {
+        #expect(ReceiptParser.renewalDate(in: "Renews on 6th of December 2026", now: now, calendar: calendar) == date(2026, 12, 6))
+    }
+
+    @Test func labelsAndScreenshotNoiseAreNotUsedAsName() {
+        let fields = parse("""
+        14:32 5G
+        < Innboks
+        Ordrenummer: 12345
+        Dato: 6. nov 2026
+        Brannvakt Pluss
+        """)
+
+        #expect(fields.name == "Brannvakt Pluss")
+    }
+
+    @Test func parsingWorksOffTheMainActor() async {
+        let text = "From: Netflix <info@mailer.netflix.com>\nTotal: NOK 149.00\nBilled monthly"
+        let catalog = ServiceCatalog.bundled
+
+        let fields = await Task.detached { ReceiptParser.parse(text, catalog: catalog) }.value
+
+        #expect(fields.catalogServiceID == "netflix")
+        #expect(fields.price == Decimal(string: "149.00"))
+    }
+
     // MARK: - Beløp
 
     @Test(arguments: [

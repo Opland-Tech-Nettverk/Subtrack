@@ -300,6 +300,28 @@ struct ReceiptInboxTests {
         }
     }
 
+    @Test func writerCapsOnUnicodeScalarsSoCombiningMarksCannotMakeAnOversizedFile() throws {
+        try withInbox { inbox, directory in
+            // «e» + kombinerende aksent er én grafemklynge, men to skalarer.
+            let text = String(repeating: "e\u{0301}", count: 15_000)
+
+            let written = try inbox.write(text: text, kind: .text, now: now)
+
+            #expect(written.text.unicodeScalars.count == ReceiptInbox.maxTextLength)
+            #expect(inbox.drain(now: now).count == 1)
+        }
+    }
+
+    @Test func fileWithAFutureCreatedAtIsStillPurgedByItsModificationDate() throws {
+        try withInbox { inbox, directory in
+            let future = now.addingTimeInterval(30 * 24 * 3_600)
+            let url = try writeFile(in: directory, createdAt: iso(future), modified: now.addingTimeInterval(-8 * 24 * 3_600))
+
+            #expect(inbox.entries(now: now).isEmpty)
+            #expect(!fileManager.fileExists(atPath: url.path))
+        }
+    }
+
     @Test func writerRejectsEmptyText() throws {
         try withInbox { inbox, directory in
             #expect(throws: ReceiptInbox.WriteError.emptyText) {

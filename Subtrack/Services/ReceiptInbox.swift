@@ -134,7 +134,9 @@ nonisolated struct ReceiptInbox {
                 continue
             }
 
+            // Også filens egen endringsdato teller, så en fil med feil `createdAt` (f.eks. i framtiden) ikke blir liggende.
             if now.timeIntervalSince(decoded.createdAt) > Self.maxAge
+                || (values?.contentModificationDate.map { now.timeIntervalSince($0) > Self.maxAge } ?? false)
                 || decoded.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 try? fileManager.removeItem(at: url)
                 continue
@@ -186,7 +188,7 @@ nonisolated struct ReceiptInbox {
 
         let item = ReceiptInboxItem(
             id: UUID(),
-            text: String(trimmed.prefix(Self.maxTextLength)),
+            text: Self.capped(trimmed),
             kind: kind,
             createdAt: now
         )
@@ -206,6 +208,12 @@ nonisolated struct ReceiptInbox {
         try Self.excludeFromBackup(temporary)
         try fileManager.moveItem(at: temporary, to: final)
         return item
+    }
+
+    /// Kutter på tegn (Unicode-skalarer, ikke grafemklynger), så filen ikke kan bli større enn `maxFileSize`
+    /// selv med tekst full av kombinerende tegn.
+    private static func capped(_ text: String) -> String {
+        String(String.UnicodeScalarView(text.unicodeScalars.prefix(maxTextLength)))
     }
 
     private static func excludeFromBackup(_ url: URL) throws {

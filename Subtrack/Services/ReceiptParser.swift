@@ -27,6 +27,8 @@ nonisolated struct ReceiptAmount: Equatable, Sendable {
 nonisolated struct ReceiptAmountCandidate: Equatable, Sendable {
     let amount: ReceiptAmount
     let score: Int
+    /// Linjen beløpet står på (og linjen foran hvis beløpet står alene). Brukes til å finne intervallet som hører til beløpet.
+    let context: String
 }
 
 /// Regelbasert tolking av kvitteringstekst (delt tekst, PDF eller OCR av bilde) til et utkast.
@@ -54,11 +56,14 @@ nonisolated enum ReceiptParser {
         fields.name = identified.name
         fields.catalogServiceID = identified.serviceID
 
-        if let amount = bestAmount(in: cleaned) {
+        let amount = bestAmount(in: cleaned)
+        if let amount {
             fields.price = amount.price
             fields.currencyCode = amount.currencyCode
         }
-        fields.interval = interval(in: cleaned)
+        // Står intervallet på samme linje som det valgte beløpet («1 188 kr (12 måneder)»), hører det til beløpet.
+        // Ellers brukes det teksten sier som helhet.
+        fields.interval = amount.flatMap { pairedInterval(for: $0, in: cleaned) } ?? interval(in: cleaned)
         fields.nextRenewalDate = renewalDate(in: cleaned, now: now, calendar: calendar)
         return fields
     }
@@ -91,7 +96,9 @@ nonisolated enum ReceiptParser {
     /// Navn og eventuell katalogtjeneste. Rekkefølge: katalogtreff i toppen av teksten (avsender, emne og de første
     /// linjene), så ett entydig katalogtreff i resten av teksten (Apple- og Google-kvitteringer har tjenesten i
     /// innholdet, ikke i avsenderen), så avsenderen, så første linje.
-    static func identifyService(lines: [String], catalog: ServiceCatalog) -> (name: String?, serviceID: String?) {
+    static func identifyService(lines allLines: [String], catalog: ServiceCatalog) -> (name: String?, serviceID: String?) {
+        // E-postadresser og mottakerlinjer ut før katalogtreff: «ola@icloud.com» skal ikke gi iCloud+.
+        let lines = matchableLines(allLines)
         let header = headerLines(lines).joined(separator: "\n")
         if let match = catalog.match(merchantText: header) {
             return (match.service.name, match.service.id)
@@ -109,10 +116,29 @@ nonisolated enum ReceiptParser {
             return (service.name, service.id)
         }
 
-        if let sender = senderName(lines: lines) {
+        if let sender = senderName(lines: allLines) {
             return (sender, nil)
         }
-        return (firstLineName(lines: lines), nil)
+        return (firstLineName(lines: allLines), nil)
+    }
+
+    private static let recipientKeys = ["til:", "to:", "cc:", "bcc:", "kopi:"]
+    private static let senderKeys = ["fra:", "from:", "avsender:"]
+    private static let emailAddress = regex(#"[^\s<>"'(),;:]+@([^\s<>"'(),;]+)"#)
+
+    /// Linjene som katalogen får se: uten mottakerlinjer (Til, To, Cc), og uten e-postadresser. På avsenderlinjer
+    /// beholdes domenet («info@mailer.netflix.com» gir «mailer.netflix.com»), ellers fjernes hele adressen.
+    static func matchableLines(_ lines: [String]) -> [String] {
+        lines.compactMap { line in
+            let lower = line.lowercased()
+            if recipientKeys.contains(where: { lower.hasPrefix($0) }) { return nil }
+            let keepDomain = senderKeys.contains { lower.hasPrefix($0) }
+            return emailAddress.stringByReplacingMatches(
+                in: line,
+                range: NSRange(line.startIndex..., in: line),
+                withTemplate: keepDomain ? "$1" : " "
+            )
+        }
     }
 
     private static let headerKeys = ["fra:", "from:", "emne:", "subject:", "avsender:", "forhandler:", "merchant:"]
@@ -216,7 +242,10 @@ nonisolated enum ReceiptParser {
             let firstWord = lower.prefix { $0.isLetter }
             if skippedLeadWords.contains(String(firstWord)) { continue }
             let name = line.trimmingCharacters(in: CharacterSet(charactersIn: " :.!,;"))
-            guard name.contains(where: \.isLetter), name.count <= 50 else { continue }
+            guard name.first?.isLetter == true, name.count <= 50 else { continue }
+            // Ikke «Ordrenummer: 12345» eller skjermbildestøy som «14:32 5G».
+            if name.range(of: #":\s*\S*\d"#, options: .regularExpression) != nil { continue }
+            if name.filter(\.isNumber).count * 10 > name.count * 3 { continue }
             return name
         }
         return nil
@@ -314,7 +343,10 @@ nonisolated enum ReceiptParser {
                 let letters = remaining.filter(\.isLetter).count
                 let context = letters < 3 ? ((previous ?? "") + " " + remaining) : remaining
                 let score = score(context: context.lowercased())
-                result.append(contentsOf: found.map { ReceiptAmountCandidate(amount: $0, score: score) })
+                let lineContext = letters < 3 ? (previous ?? "") + " " + line : line
+                result.append(contentsOf: found.map {
+                    ReceiptAmountCandidate(amount: $0, score: score, context: lineContext)
+                })
             }
             previous = line
         }
@@ -335,8 +367,8 @@ nonisolated enum ReceiptParser {
         (regex(#"\b(?:beløp|amount|price|pris|charged|belastet|trukket|betalt|paid|payment|betaling|billed|fakturert)\b"#), 5),
         (regex(#"\b(?:deretter|then|thereafter)\b"#), 3),
         (regex(#"\b(?:inkl|incl|including|inklusive)\b"#), 2),
-        (regex(#"\b(?:ekskl|exkl|excl|excluding)\b|før mva|before tax"#), -6),
-        (regex(#"\b(?:subtotal|sub-total|delsum|rabatt|discount|saldo|refund|refusjon|tilbakebetal\w*|credit|kreditt\w*|gebyr|fee|spar\w*|savings)\b|account balance"#), -20)
+        (regex(#"\b(?:ekskl|exkl|eks|excl|excluding)\b|før mva|before tax"#), -6),
+        (regex(#"\b(?:subtotal|sub ?-?total|delsum|rabatt|discount|saldo|refund|refusjon|tilbakebetal\w*|credit|kreditt\w*|gebyr|fee|spar\w*|savings)\b|account balance"#), -20)
     ]
 
     /// Poengsum for en linje (små bokstaver). Over 0: ser ut som totalsum. Under -9: skal ikke brukes.
@@ -366,41 +398,71 @@ nonisolated enum ReceiptParser {
             || renewalKeywords.firstMatch(in: lower, range: range) != nil
     }
 
-    /// Det mest sannsynlige totalbeløpet, eller nil hvis flere ulike beløp er like sannsynlige.
-    static func bestAmount(in text: String) -> ReceiptAmount? {
+    /// Beløpene som har høyest poengsum og ikke er utelukket (delsum, mva, rabatt osv.), uten dubletter.
+    /// Ett beløp betyr at det er totalen. Flere betyr at reglene ikke kan velge, og da er det bare disse
+    /// modellen kan velge mellom.
+    static func topAmounts(in text: String) -> [ReceiptAmount] {
+        topCandidates(in: text).amounts
+    }
+
+    private static func topCandidates(in text: String) -> (amounts: [ReceiptAmount], leaders: [ReceiptAmountCandidate]) {
         let candidates = amountCandidates(in: text).filter { $0.score > -10 }
-        guard let top = candidates.map(\.score).max() else { return nil }
+        guard let top = candidates.map(\.score).max() else { return ([], []) }
 
         var distinct: [ReceiptAmount] = []
-        for candidate in candidates where candidate.score == top && !distinct.contains(candidate.amount) {
+        let leaders = candidates.filter { $0.score == top }
+        for candidate in leaders where !distinct.contains(candidate.amount) {
             distinct.append(candidate.amount)
         }
-        return distinct.count == 1 ? distinct[0] : nil
+        return (distinct, leaders)
+    }
+
+    /// Det mest sannsynlige totalbeløpet, eller nil hvis flere ulike beløp er like sannsynlige.
+    static func bestAmount(in text: String) -> ReceiptAmount? {
+        let amounts = topAmounts(in: text)
+        return amounts.count == 1 ? amounts[0] : nil
+    }
+
+    /// Intervallet som står på samme linje som beløpet (eller på linjen foran, hvis beløpet står alene).
+    private static func pairedInterval(for amount: ReceiptAmount, in text: String) -> BillingInterval? {
+        let candidates = amountCandidates(in: text).filter { $0.amount == amount && $0.score > -10 }
+        let leaders = topCandidates(in: text).leaders.filter { $0.amount == amount }
+        for candidate in leaders + candidates {
+            if let found = interval(in: candidate.context) { return found }
+        }
+        return nil
     }
 
     // MARK: - Intervall
 
+    /// «a week», «a month» og «a year» teller bare rett etter et beløp («$9.99 a month»); ellers ville
+    /// «a week before your trial ends» gitt ukentlig. «12 måneder» betyr årlig, men «12 måneders binding» gjør det ikke.
     private static let intervalRules: [(BillingInterval, NSRegularExpression)] = [
         (.weekly, regex(
-            #"\b(?:ukentlig\w*|hver uke|hver 7\. dag|per uke|pr\.? uke|weekly|every week|each week|per week|a week)\b|/ ?(?:uke|wk|week)\b"#
+            #"\b(?:ukentlig\w*|hver uke|hver 7\. dag|per uke|pr\.? uke|weekly|every week|each week|per week)\b|/ ?(?:uke|wk|week)\b|\d ?(?:kr|nok|usd|eur|gbp|sek|dkk|[€$£])? ?a week\b"#
         )),
         (.monthly, regex(
-            #"\b(?:månedlig\w*|hver måned|hver mnd\.?|per måned|pr\.? måned|per mnd\.?|pr\.? mnd\.?|monthly|every month|each month|per month|a month|per mo)\b|/ ?(?:måned|mnd|month|mo)\b"#
+            #"\b(?:månedlig\w*|månedsabonnement\w*|månedspris\w*|hver måned|hver mnd\.?|hver md\.?|per måned|pr\.? måned|per mnd\.?|pr\.? mnd\.?|per md\.?|pr\.? md\.?|monthly|every month|each month|per month|per mo)\b|/ ?(?:måned|mnd|md|month|mo)\b|\d ?(?:kr|nok|usd|eur|gbp|sek|dkk|[€$£])? ?a month\b"#
         )),
         (.quarterly, regex(
-            #"\b(?:kvartalsvis\w*|hvert kvartal|per kvartal|quarterly|each quarter|per quarter|every (?:3|three) months|every 3 mo|hver (?:3\.?|tredje) måned)\b"#
+            #"\b(?:kvartalsvis\w*|hvert kvartal|per kvartal|quarterly|each quarter|per quarter|every (?:3|three) months|every 3 mo|hver (?:3\.?|tredje) måned)\b|/ ?kvartal\b"#
         )),
         (.yearly, regex(
-            #"\b(?:årlig\w*|hvert år|per år|pr\.? år|annual|annually|yearly|every year|each year|per year|a year)\b|/ ?(?:år|year|yr)\b"#
+            #"\b(?:årlig\w*|årsabonnement\w*|årspris\w*|hvert år|per år|pr\.? år|annual|annually|yearly|every year|each year|per year|12 ?(?:måneder|mnd\.?|md\.?|months|mths))\b|/ ?(?:år|year|yr)\b|\d ?(?:kr|nok|usd|eur|gbp|sek|dkk|[€$£])? ?a year\b"#
         ))
     ]
 
     /// Intervallet kvitteringen sier, eller nil hvis den ikke sier noe eller sier flere ting.
     static func interval(in text: String) -> BillingInterval? {
+        let found = intervalsMentioned(in: text)
+        return found.count == 1 ? found[0] : nil
+    }
+
+    /// Alle intervaller teksten nevner, uten dubletter.
+    static func intervalsMentioned(in text: String) -> [BillingInterval] {
         let lower = text.lowercased()
         let range = NSRange(lower.startIndex..., in: lower)
-        let found = intervalRules.filter { $0.1.firstMatch(in: lower, range: range) != nil }
-        return found.count == 1 ? found[0].0 : nil
+        return intervalRules.filter { $0.1.firstMatch(in: lower, range: range) != nil }.map(\.0)
     }
 
     // MARK: - Dato
@@ -425,7 +487,7 @@ nonisolated enum ReceiptParser {
 
     private static let isoDate = regex(#"\b(\d{4})-(\d{1,2})-(\d{1,2})\b"#)
     private static let numericDate = regex(#"\b(\d{1,2})([./])(\d{1,2})\2(\d{4}|\d{2})\b"#)
-    private static let dayMonthDate = regex(#"\b(\d{1,2})(?:st|nd|rd|th)?\.? ?([a-zæøå]{3,9})\.?(?:,? (\d{4}))?\b"#)
+    private static let dayMonthDate = regex(#"\b(\d{1,2})(?:st|nd|rd|th)?(?: of)?\.? ?([a-zæøå]{3,9})\.?(?:,? (\d{4}))?\b"#)
     private static let monthDayDate = regex(#"\b([a-zæøå]{3,9})\.? (\d{1,2})(?:st|nd|rd|th)?(?:,? (\d{4}))?\b"#)
 
     /// Datoen som står etter et fornyelsesord («neste trekk», «fornyes», «renews on», «next billing date»).
@@ -449,6 +511,22 @@ nonisolated enum ReceiptParser {
     }
 
     private static func firstDate(in window: String, now: Date, calendar: Calendar) -> Date? {
+        allDates(in: window, now: now, calendar: calendar).min { $0.location < $1.location }?.date
+    }
+
+    /// Alle datoer teksten sier utvetydig (se `renewalDate` for formatene), uten hensyn til fornyelsesord.
+    /// Brukes til å sjekke at en dato fra modellen faktisk står i teksten.
+    static func datesMentioned(in text: String, now: Date = Date(), calendar: Calendar = .current) -> [Date] {
+        allDates(in: text.lowercased().replacingOccurrences(of: "\n", with: " "), now: now, calendar: calendar).map(\.date)
+    }
+
+    /// Sant hvis teksten har et fornyelsesord («neste trekk», «fornyes», «renews», ...).
+    static func hasRenewalPhrase(in text: String) -> Bool {
+        let lower = text.lowercased()
+        return renewalKeywords.firstMatch(in: lower, range: NSRange(lower.startIndex..., in: lower)) != nil
+    }
+
+    private static func allDates(in window: String, now: Date, calendar: Calendar) -> [(location: Int, date: Date)] {
         var found: [(location: Int, date: Date)] = []
         let range = NSRange(window.startIndex..., in: window)
 
@@ -505,7 +583,7 @@ nonisolated enum ReceiptParser {
             }
         }
 
-        return found.min { $0.location < $1.location }?.date
+        return found
     }
 
     /// Kl. 12 på dagen (appen normaliserer datoer til kl. 12). nil for datoer som ikke finnes, f.eks. 31. februar.

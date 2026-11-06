@@ -166,7 +166,7 @@ struct ReceiptEnrichmentTests {
         rules.interval = .yearly
         let model = ReceiptModelCandidate(interval: .monthly, nextRenewalDate: date(2026, 11, 15))
 
-        let result = merge(rules, model, text: receipt)
+        let result = merge(rules, model, text: "Fornyes 15. november 2026\nBetales månedlig")
 
         #expect(result.interval == .yearly)
         #expect(result.nextRenewalDate == date(2026, 11, 15))
@@ -218,18 +218,75 @@ struct ReceiptEnrichmentTests {
         #expect(result.nextRenewalDate == nil)
     }
 
-    @Test func completeRulesSkipTheModelEntirely() async {
-        var rules = ReceiptFields()
-        rules.name = "Netflix"
-        rules.price = 149
-        rules.currencyCode = "NOK"
-        rules.interval = .monthly
-        rules.nextRenewalDate = date(2026, 11, 15)
+    // MARK: - Grunnlag i teksten (fix 2 og 3)
 
-        let result = await ReceiptEnrichment.enrich(rules, text: "Netflix", catalog: catalog, now: now, calendar: calendar)
+    private let tieReceipt = """
+    Totalt 149,00 kr
+    Sum 129,00 kr
+    MVA 25 % 29,80 kr
+    """
 
-        #expect(result.price == 149)
-        #expect(result.name == "Netflix")
+    @Test func modelCannotPickTheVatAmountWhenTheRulesAreInDoubt() {
+        #expect(ReceiptParser.bestAmount(in: tieReceipt) == nil)
+        let model = ReceiptModelCandidate(price: Decimal(string: "29.80"), currencyCode: "NOK")
+
+        let result = merge(ReceiptFields(), model, text: tieReceipt)
+
+        #expect(result.price == nil)
+    }
+
+    @Test func modelCanChooseBetweenTheAmountsTheRulesWereInDoubtAbout() {
+        let model = ReceiptModelCandidate(price: Decimal(string: "149.00"), currencyCode: "NOK")
+
+        let result = merge(ReceiptFields(), model, text: tieReceipt)
+
+        #expect(result.price == Decimal(string: "149.00"))
+    }
+
+    @Test(arguments: ["Rabatt 20,00 kr", "Delsum 100,00 kr", "Refusjon 49,00 kr", "Saldo 12,00 kr"])
+    func modelCannotPickDiscardedAmounts(discarded: String) {
+        let text = "Totalt 149,00 kr\nSum 129,00 kr\n\(discarded)"
+        let price = ReceiptParser.amounts(inLine: discarded).first!.price
+
+        let result = merge(ReceiptFields(), ReceiptModelCandidate(price: price, currencyCode: "NOK"), text: text)
+
+        #expect(result.price == nil)
+    }
+
+    @Test func modelIntervalMustBeNamedInTheText() {
+        let model = ReceiptModelCandidate(interval: .monthly)
+
+        #expect(merge(ReceiptFields(), model, text: "Brannvakt Pluss\nTotalt 149,00 kr").interval == nil)
+        #expect(merge(ReceiptFields(), model, text: "Brannvakt Pluss\nBetales månedlig").interval == .monthly)
+    }
+
+    @Test func modelCannotInventAnIntervalTheTextDoesNotName() {
+        let model = ReceiptModelCandidate(interval: .yearly)
+
+        let result = merge(ReceiptFields(), model, text: "Billed monthly. Total 99 kr")
+
+        #expect(result.interval == nil)
+    }
+
+    @Test func modelDateMustStandInTheTextWithARenewalPhrase() {
+        let model = ReceiptModelCandidate(nextRenewalDate: date(2026, 11, 15))
+
+        // Datoen står ikke i teksten (modellen har regnet den ut).
+        #expect(merge(ReceiptFields(), model, text: "Kjøpsdato 15. oktober 2026\nNeste trekk i neste måned").nextRenewalDate == nil)
+        // Datoen står i teksten, men ikke som fornyelse.
+        #expect(merge(ReceiptFields(), model, text: "Kjøpsdato 15. november 2026\nTotalt 99,00 kr").nextRenewalDate == nil)
+        // Datoen står i teksten og teksten har et fornyelsesord.
+        let grounded = merge(ReceiptFields(), model, text: "Kjøpsdato 15. november 2026\nFornyes automatisk. Totalt 99,00 kr")
+        #expect(grounded.nextRenewalDate == date(2026, 11, 15))
+    }
+
+    @Test func ambiguousSlashDateFromTheModelIsRejected() {
+        // 03/04/2027 kan være 3. april eller 4. mars; reglene lar den stå tom, og modellen får ikke velge.
+        let model = ReceiptModelCandidate(nextRenewalDate: date(2027, 4, 3))
+
+        let result = merge(ReceiptFields(), model, text: "Renews on 03/04/2027")
+
+        #expect(result.nextRenewalDate == nil)
     }
 
     // MARK: - Nedkorting av teksten
