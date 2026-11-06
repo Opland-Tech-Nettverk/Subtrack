@@ -132,7 +132,7 @@ struct StatementImporterTests {
         let now = Support.now
         let calendar = Support.calendar
         let analysis = try await Task.detached { () throws -> StatementAnalysis in
-            #expect(!Thread.isMainThread)
+            #expect(!Thread.current.isMainThread)
             return try StatementImporter.analyze(
                 data: data,
                 catalog: catalog,
