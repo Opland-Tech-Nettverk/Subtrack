@@ -164,19 +164,80 @@ struct RecurringChargeDetectorTests {
 
     // MARK: - Navn som ligner et eksisterende abonnement
 
-    @Test func similarNamesCountAsExistingSubscriptions() {
+    @Test func sameNamesAreHiddenAndSimilarNamesAreShownUncheckedWithANote() {
         let telenor = Support.monthly("TELENOR NORGE AS", amounts: [599, 599, 599, 599], from: day(2026, 1, 20))
         let gym = Support.monthly("Fitness24seven AB 12345", amounts: [399, 399, 399, 399], from: day(2026, 1, 5))
         let insurance = Support.monthly("GJENSIDIGE FORSIKRING ASA", amounts: [820, 820, 820, 820], from: day(2026, 1, 1))
         let all = telenor + gym + insurance
+
+        // Uten eksisterende abonnement: alle tre, uten merknad.
         #expect(detect(all).count == 3)
+        #expect(detect(all).allSatisfy { $0.similarTo == nil })
+
+        // Samme navn etter normalisering skjules.
         #expect(detect(all, existing: ["Telenor"]).count == 2)
-        #expect(detect(all, existing: ["telenor mobil"]).count == 2)
+        #expect(detect(all, existing: ["telenor norge"]).count == 2)
         #expect(detect(all, existing: ["Fitness24Seven"]).count == 2)
-        #expect(detect(all, existing: ["Gjensidige"]).count == 2)
-        #expect(detect(all, existing: ["Telenor", "Fitness24Seven", "Gjensidige"]).isEmpty)
-        // Et annet navn er ikke det samme abonnementet.
+        #expect(detect(all, existing: ["Telenor", "Fitness24Seven"]).count == 1)
+
+        // Et navn som bare ligner, vises med merknad.
+        func suggestion(for existing: String, named name: String) -> SubscriptionSuggestion? {
+            detect(all, existing: [existing]).first { $0.name == name }
+        }
+        #expect(suggestion(for: "Fitness", named: "Fitness24seven AB")?.similarTo == "Fitness")
+        #expect(suggestion(for: "Forsikring", named: "Gjensidige Forsikring Asa")?.similarTo == "Forsikring")
+        #expect(suggestion(for: "Gjensidige", named: "Gjensidige Forsikring Asa")?.similarTo == "Gjensidige")
+        #expect(suggestion(for: "Telenor Mobil", named: "Telenor Norge As")?.similarTo == "Telenor Mobil")
+        #expect(detect(all, existing: ["Fitness", "Forsikring"]).count == 3)
+
+        // Andre navn er ikke like.
+        #expect(detect(all, existing: ["Telia", "Fitnessworld", "If forsikring"]).allSatisfy { $0.similarTo == nil })
         #expect(detect(all, existing: ["Telia", "Fitnessworld", "If forsikring"]).count == 3)
+    }
+
+    @Test func aShortExistingNameLikeMaxDoesNotHideAnUnrelatedMerchant() {
+        let transactions = Support.monthly("MAX BURGER OSLO", amounts: [199, 199, 199, 199], from: day(2026, 6, 3))
+        let suggestion = detect(transactions, existing: ["Max"]).first
+        #expect(suggestion?.name == "Max Burger Oslo")
+        #expect(suggestion?.similarTo == "Max")
+    }
+
+    @Test func similarSuggestionsAreNotPreChecked() {
+        let transactions = Support.monthly("GJENSIDIGE FORSIKRING ASA", amounts: [820, 820, 820, 820], from: day(2026, 1, 1))
+            + Support.monthly("Zzzservice AB", amounts: [100, 100, 100, 100], from: day(2026, 1, 2))
+        let suggestions = detect(transactions, existing: ["Forsikring"])
+        #expect(suggestions.count == 2)
+        #expect(suggestions.allSatisfy { $0.confidence == .high })
+        let selection = SuggestionSelection(suggestions: suggestions)
+        #expect(selection.selectedCount == 1)
+        #expect(selection.isSelected(suggestions.first { $0.similarTo == nil }!.id))
+    }
+
+    // MARK: - Ny pris som hviler på ett trekk
+
+    @Test func aNewPriceOnOneChargeWithoutACatalogPlanIsNotPreChecked() {
+        let transactions = Support.monthly("Fooservice AB", amounts: [100, 100, 100, 100, 180], from: day(2026, 1, 10))
+        let suggestion = detect(transactions).first
+        #expect(suggestion?.price == 180)
+        #expect(suggestion?.confidence == .medium)
+    }
+
+    @Test func aNewPriceOnOneChargeThatMatchesACatalogPlanStaysHighConfidence() {
+        let transactions = Support.monthly("SPOTIFY.COM", amounts: [119, 119, 119, 119, 139], from: day(2026, 1, 3))
+        #expect(detect(transactions).first?.confidence == .high)
+    }
+
+    @Test func aNewPriceOnTwoChargesKeepsItsConfidence() {
+        let transactions = Support.monthly("Fooservice AB", amounts: [100, 100, 100, 100, 115, 115], from: day(2026, 1, 10))
+        #expect(detect(transactions).first?.confidence == .high)
+    }
+
+    @Test func realNamesWithDigitsAreNotStrippedAsReferences() {
+        let names = ["Office365", "Bet365", "Gym365", "123inkt"]
+        for name in names {
+            let transactions = Support.monthly(name, amounts: [149, 149, 149, 149], from: day(2026, 1, 8))
+            #expect(detect(transactions).first?.name == name, "\(name)")
+        }
     }
 
     // MARK: - Navn uten referansenumre
@@ -417,25 +478,37 @@ struct SubscriptionNameMatcherTests {
         ("Telenor", "TELENOR NORGE AS"),
         ("telenor", "Telenor Norge"),
         ("Fitness24Seven", "Fitness24seven AB 12345"),
-        ("Gjensidige", "GJENSIDIGE FORSIKRING ASA"),
-        ("Spotify", "SPOTIFYSE"),
         ("Netflix", "NETFLIX.COM"),
         ("Åsane Treningssenter", "ASANE TRENINGSSENTER AS"),
-        ("Telenor Mobil", "Telenor Norge AS")
+        ("Husleie", "Husleie 98765")
     ])
-    func similarNamesMatch(first: String, second: String) {
-        #expect(SubscriptionNameMatcher.matches(first, second))
-        #expect(SubscriptionNameMatcher.matches(second, first))
+    func sameNamesAreTheSame(first: String, second: String) {
+        #expect(SubscriptionNameMatcher.match(first, second) == .same)
+        #expect(SubscriptionNameMatcher.match(second, first) == .same)
+    }
+
+    @Test(arguments: [
+        ("Telenor Mobil", "Telenor Norge AS"),
+        ("Spotify", "SPOTIFYSE"),
+        ("Fitness", "Fitness24Seven"),
+        ("Forsikring", "Gjensidige Forsikring ASA"),
+        ("Max", "Max Burger Oslo"),
+        ("Trening", "Åsane Treningssenter")
+    ])
+    func partialMatchesAreOnlySimilar(first: String, second: String) {
+        #expect(SubscriptionNameMatcher.match(first, second) == .similar)
+        #expect(SubscriptionNameMatcher.match(second, first) == .similar)
     }
 
     @Test(arguments: [
         ("Telenor", "Telia"),
         ("Apple Music", "Apple One"),
         ("Max", "Maxbo"),
+        ("Fitness", "Wellness"),
         ("", "Telenor"),
         ("AS", "Telenor AS")
     ])
     func differentNamesDoNotMatch(first: String, second: String) {
-        #expect(!SubscriptionNameMatcher.matches(first, second))
+        #expect(SubscriptionNameMatcher.match(first, second) == nil)
     }
 }

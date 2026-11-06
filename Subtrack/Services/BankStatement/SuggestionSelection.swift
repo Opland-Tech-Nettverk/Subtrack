@@ -8,7 +8,8 @@ struct SuggestionSelection: Equatable {
 
     init(suggestions: [SubscriptionSuggestion]) {
         self.suggestions = suggestions
-        self.selectedIDs = Set(suggestions.filter { $0.confidence == .high }.map(\.id))
+        // Bare sikre forslag som ikke ligner et abonnement du har fra før, er huket av.
+        self.selectedIDs = Set(suggestions.filter { $0.confidence == .high && $0.similarTo == nil }.map(\.id))
     }
 
     var selectedCount: Int { selectedIDs.count }

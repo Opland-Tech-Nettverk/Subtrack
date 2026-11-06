@@ -103,7 +103,7 @@ struct StatementReviewView: View {
             } header: {
                 Text("Forslag (\(selection.suggestions.count))")
             } footer: {
-                Text("Sikre forslag er huket av. Trykk på et forslag for å se det og endre det før det legges inn.")
+                Text("Sikre forslag er huket av, unntatt de som ligner et abonnement du har fra før. Trykk på et forslag for å se det og endre det før det legges inn.")
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -213,6 +213,11 @@ private struct SuggestionRowContent: View {
             Text("\(suggestion.interval.displayName) · \(lastChargeText)")
                 .font(.caption)
                 .foregroundStyle(Color.secondary)
+            if let similar = suggestion.similarTo {
+                Text("Ligner «\(similar)»")
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            }
         } detail: {
             Text(priceText)
                 .font(.body.weight(.medium))
@@ -236,6 +241,9 @@ private struct SuggestionRowContent: View {
         ]
         if suggestion.confidence == .medium {
             parts.append("middels sikker")
+        }
+        if let similar = suggestion.similarTo {
+            parts.append("ligner \(similar)")
         }
         return parts.joined(separator: ", ")
     }

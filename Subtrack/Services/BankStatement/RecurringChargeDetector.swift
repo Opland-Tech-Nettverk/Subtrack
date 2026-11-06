@@ -22,6 +22,9 @@ nonisolated struct SubscriptionSuggestion: Identifiable, Equatable {
     let service: CatalogService?
     /// Utfylt utkast for skjemaet.
     let draft: SubscriptionDraft
+    /// Navnet på et eksisterende abonnement dette forslaget ligner på uten å være det samme, f.eks.
+    /// «Fitness» for «Fitness24Seven». Slike forslag er ikke huket av på forhånd, og raden sier fra.
+    var similarTo: String? = nil
 
     /// Abonnementet forslaget gir, slik skjemaet ville lagret det uten endringer.
     /// Bare på hovedaktøren, siden modellen hører til SwiftData.
@@ -73,16 +76,28 @@ nonisolated enum RecurringChargeDetector {
     /// Om beløpene (i tidsrekkefølge) ligger nær hverandre, eller deler seg i to grupper der den
     /// første gruppen kommer før den andre: en prisendring. Prisene i gruppene må ligge innenfor en
     /// faktor to, så ett enkeltstående stort kjøp på slutten ikke regnes som ny pris.
-    private static func hasAtMostTwoPriceLevels(_ amounts: [Decimal]) -> Bool {
-        guard amounts.count >= 2 else { return true }
-        if level(of: amounts[...]) != nil { return true }
+    private static func priceLevels(_ amounts: [Decimal]) -> PriceLevels? {
+        guard amounts.count >= 2 else { return PriceLevels(latestLevelCount: amounts.count, changed: false) }
+        if level(of: amounts[...]) != nil {
+            return PriceLevels(latestLevelCount: amounts.count, changed: false)
+        }
+        var best: PriceLevels?
         for split in 1..<amounts.count {
             if let head = level(of: amounts[..<split]), let tail = level(of: amounts[split...]),
                head * 2 >= tail, tail * 2 >= head {
-                return true
+                let count = amounts.count - split
+                if best == nil || count > best!.latestLevelCount {
+                    best = PriceLevels(latestLevelCount: count, changed: true)
+                }
             }
         }
-        return false
+        return best
+    }
+
+    /// Hvor mange trekk den siste prisen hviler på, og om prisen er endret i perioden.
+    private nonisolated struct PriceLevels {
+        let latestLevelCount: Int
+        let changed: Bool
     }
 
     /// Medianbeløpet når alle beløpene ligger innenfor ±10 % av det, ellers nil.
@@ -169,15 +184,27 @@ nonisolated enum RecurringChargeDetector {
                 now: now,
                 calendar: calendar
             ) else { continue }
-            // Samme tjeneste i katalogen, eller et navn som ligner (store og små bokstaver, aksenter
-            // og selskapsendelser som «AS» og «Norge» teller ikke). Slike forslag vises ikke.
+            // Samme tjeneste i katalogen, eller samme navn (store og små bokstaver, aksenter og
+            // selskapsendelser som «AS» og «Norge» teller ikke): forslaget vises ikke. Et navn som bare
+            // ligner (et ord er med i det andre, som «Fitness» og «Fitness24Seven») vises, men uten
+            // hake og med en merknad, siden det kan være et nytt abonnement hos samme leverandør.
             if let serviceID = suggestion.service?.id, existingServiceIDs.contains(serviceID) { continue }
             let names = [suggestion.name, group.displayName].filter { !$0.isEmpty }
-            let alreadyExists = existingNames.contains { existing in
-                names.contains { SubscriptionNameMatcher.matches(existing, $0) }
+            var similar: String?
+            var isSame = false
+            for existing in existingNames {
+                for name in names {
+                    switch SubscriptionNameMatcher.match(existing, name) {
+                    case .same: isSame = true
+                    case .similar: if similar == nil { similar = existing }
+                    case nil: break
+                    }
+                }
             }
-            if alreadyExists { continue }
-            suggestions.append(suggestion)
+            if isSame { continue }
+            var shown = suggestion
+            shown.similarTo = similar
+            suggestions.append(shown)
         }
 
         return suggestions.sorted { lhs, rhs in
@@ -226,8 +253,8 @@ nonisolated enum RecurringChargeDetector {
         // tjenester varierer i kroner med kursen).
         // Én prisendring tåles: først én pris og så en annen (Netflix 129 og så 149). Den siste prisen brukes.
         let currencies = Set(charges.map(\.transaction.currencyCode))
-        let isCloseInAccountCurrency = currencies.count == 1
-            && hasAtMostTwoPriceLevels(charges.map(\.transaction.amount))
+        let levels = currencies.count == 1 ? priceLevels(charges.map(\.transaction.amount)) : nil
+        let isCloseInAccountCurrency = levels != nil
         let isFixedInOriginalCurrency = Set(charges.map(\.originalCurrency)).count == 1
             && Set(charges.map(\.originalAmount)).count == 1
         guard isCloseInAccountCurrency || isFixedInOriginalCurrency else { return nil }
@@ -242,8 +269,13 @@ nonisolated enum RecurringChargeDetector {
         )
 
         let minimum = minimumCharges(for: interval)
-        let confidence: SubscriptionSuggestion.Confidence =
+        var confidence: SubscriptionSuggestion.Confidence =
             (group.isCatalogMatch || charges.count > minimum) ? .high : .medium
+        // En ny pris som bare hviler på ett trekk, og som ingen plan i katalogen bekrefter, kan være et
+        // engangsbeløp (en oppgradering eller et tillegg). Da er forslaget ikke sikkert nok til å huke av.
+        if let levels, levels.changed, levels.latestLevelCount == 1, plan == nil, !isFixedInOriginalCurrency {
+            confidence = .medium
+        }
 
         let nextExpected = nextDate(after: latest.transaction.date, interval: interval, now: now, calendar: calendar)
         let name = group.service?.name ?? group.displayName
@@ -340,26 +372,29 @@ nonisolated enum RecurringChargeDetector {
 
 /// Sammenligner navnet på et eksisterende abonnement med navnet på et forslag fra en kontoutskrift.
 /// Store og små bokstaver, aksenter, selskapsendelser («AS», «ASA», «Norge», «Ltd» …) og referansenumre
-/// teller ikke. Navnene regnes som like når alle ordene i det ene finnes i det andre, så «Telenor» og
-/// «TELENOR NORGE AS» er samme abonnement, og «Fitness24Seven» og «Fitness24seven AB 12345» også.
-/// Et ord kan også være begynnelsen på et annet (minst fire tegn), som «spotify» og «spotifyse».
+/// teller ikke. Har navnene de samme ordene, er det samme abonnement («Telenor» og «TELENOR NORGE AS»).
+/// Er alle ordene i det ene med i det andre, eller et ord er begynnelsen på et annet (minst fire tegn),
+/// ligner de bare («Fitness» og «Fitness24Seven», «Forsikring» og «Gjensidige Forsikring»).
 nonisolated enum SubscriptionNameMatcher {
+    nonisolated enum Match: Equatable {
+        case same, similar
+    }
+
     private static let noiseWords: Set<String> = [
         "as", "asa", "ab", "ltd", "limited", "inc", "gmbh", "norge", "norway", "sverige", "no", "com", "the"
     ]
 
     static func words(_ text: String) -> [String] {
-        MerchantText.normalized(text)
-            .split(separator: " ")
-            .map(String.init)
-            .filter { !noiseWords.contains($0) && !MerchantNormalizer.isReferenceToken($0) }
+        let tokens = MerchantText.normalized(text).split(separator: " ").map(String.init)
+        return MerchantNormalizer.strippingReferences(tokens).filter { !noiseWords.contains($0) }
     }
 
-    static func matches(_ first: String, _ second: String) -> Bool {
+    static func match(_ first: String, _ second: String) -> Match? {
         let a = words(first)
         let b = words(second)
-        guard !a.isEmpty, !b.isEmpty else { return false }
-        return covers(a, b) || covers(b, a)
+        guard !a.isEmpty, !b.isEmpty else { return nil }
+        if Set(a) == Set(b) { return .same }
+        return covers(a, b) || covers(b, a) ? .similar : nil
     }
 
     /// Alle ordene i `small` har et like eller beslektet ord i `big`.

@@ -29,16 +29,24 @@ nonisolated enum MerchantNormalizer {
     /// Nøkkelen for gruppering: som `MerchantText.normalized`, men uten referanse-, KID- og
     /// kontonumre, som er ulike for hver betaling.
     static func key(for text: String) -> String {
-        MerchantText.normalized(text)
-            .split(separator: " ")
-            .filter { !isReferenceToken(String($0)) }
+        strippingReferences(MerchantText.normalized(text).split(separator: " ").map(String.init))
             .joined(separator: " ")
+    }
+
+    /// Ordene uten referanser. Det siste ordet i et navn tas aldri bort: består teksten bare av
+    /// ord som ser ut som referanser («KID»), beholdes det siste av dem som har bokstaver.
+    static func strippingReferences(_ tokens: [String]) -> [String] {
+        let kept = tokens.filter { !isReferenceToken($0) }
+        if kept.isEmpty, let fallback = tokens.last(where: { $0.contains { $0.isLetter } }) {
+            return [fallback]
+        }
+        return kept
     }
 
     /// Om et ord ser ut som en referanse, KID eller et kontonummer og ikke som en del av navnet:
     /// ordene «ref» og «kid», tall på fem siffer eller mer (også med punktum, f.eks. «1234.56.78901»),
-    /// og ord på minst seks tegn med minst tre siffer blandet med bokstaver («p3a91b2c»).
-    /// «Fitness24Seven» og «Rema 1000» er navn og beholdes.
+    /// og ord på minst seks tegn med minst tre siffer som skifter mellom bokstaver og siffer minst to
+    /// ganger («p3a91b2c»). «Fitness24Seven», «Office365», «Bet365», «123inkt» og «Rema 1000» er navn.
     static func isReferenceToken(_ token: String) -> Bool {
         let word = token.lowercased().trimmingCharacters(in: .punctuationCharacters)
         if ["ref", "kid", "kidnr", "fakt", "faktura", "fakturanr"].contains(word) {
@@ -49,18 +57,37 @@ nonisolated enum MerchantNormalizer {
         if letters == 0 {
             return digits >= 5
         }
-        return token.count >= 6 && digits >= 3
+        return token.count >= 6 && digits >= 3 && letterDigitSwitches(in: token) >= 2
+    }
+
+    /// Hvor mange ganger ordet skifter mellom bokstav og siffer: «office365» 1, «p3a91b2c» 7.
+    private static func letterDigitSwitches(in token: String) -> Int {
+        var switches = 0
+        var previous: Bool?
+        for character in token {
+            let isDigit: Bool
+            if character.isNumber {
+                isDigit = true
+            } else if character.isLetter {
+                isDigit = false
+            } else {
+                continue
+            }
+            if let previous, previous != isDigit { switches += 1 }
+            previous = isDigit
+        }
+        return switches
     }
 
     /// Navnet til visning. Skrives bare med store bokstaver i banken, gjøres det om til «Stor forbokstav».
     /// Referanse-, KID- og kontonumre tas ikke med, siden navnet kan bli lagret.
     static func displayName(for text: String) -> String {
-        let words = MerchantText.cleaned(text)
-            .split(separator: " ")
-            .map(String.init)
-            .filter { word in
-                word.contains { $0.isLetter || $0.isNumber } && !isReferenceToken(word)
-            }
+        let words = strippingReferences(
+            MerchantText.cleaned(text)
+                .split(separator: " ")
+                .map(String.init)
+                .filter { word in word.contains { $0.isLetter || $0.isNumber } }
+        )
         let cleaned = words.joined(separator: " ")
         let letters = cleaned.filter { $0.isLetter }
         if !letters.isEmpty, letters == letters.uppercased() {
