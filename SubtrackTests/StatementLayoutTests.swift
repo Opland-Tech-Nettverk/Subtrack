@@ -60,6 +60,13 @@ struct StatementLayoutTests {
         #expect(layout?.textColumn == 4)
         #expect(layout?.amount == .single(column: 5))
         #expect(layout?.currencyColumn == 7)
+        #expect(layout?.statusColumn == 8)
+    }
+
+    @Test func statusColumnIsOptional() {
+        #expect(detectLayout(["Dato", "Tekst", "Beløp"])?.statusColumn == nil)
+        #expect(detectLayout(["Dato", "Tekst", "Beløp", "Status"])?.statusColumn == 3)
+        #expect(detectLayout(["Dato", "Tekst", "Beløp", "State"])?.statusColumn == 3)
     }
 
     @Test func bulder() {

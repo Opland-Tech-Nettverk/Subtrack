@@ -64,7 +64,8 @@ struct RecurringChargeDetectorTests {
 
     @Test func nextExpectedDateIsOneIntervalAfterTheLastChargeAndNeverInThePast() {
         let transactions = Support.monthly("Fooservice AB", amounts: [100, 100, 100], from: day(2026, 1, 14))
-        // Siste trekk 14. mars. 20. oktober er «i dag», så neste trekk er 14. november.
+        // Utskriften slutter med serien, så den regnes ikke som avsluttet. Siste trekk 14. mars.
+        // 20. oktober er «i dag», så neste trekk er 14. november.
         let suggestion = detect(transactions, now: day(2026, 10, 20)).first
         #expect(suggestion?.lastChargeDate == day(2026, 3, 14))
         #expect(suggestion?.nextExpectedDate == day(2026, 11, 14))
@@ -90,6 +91,102 @@ struct RecurringChargeDetectorTests {
     @Test func twoMonthlyChargesAreNotEnough() {
         let transactions = Support.monthly("Fooservice AB", amounts: [100, 100], from: day(2026, 8, 10))
         #expect(detect(transactions).isEmpty)
+    }
+
+
+    // MARK: - Avsluttede serier
+
+    @Test func aSeriesThatStoppedLongBeforeTheEndOfTheStatementIsNotSuggested() {
+        // Netflix januar til mai, så sluttet trekkene. Utskriften varer til oktober.
+        let netflix = Support.monthly("NETFLIX.COM", amounts: [149, 149, 149, 149, 149], from: day(2026, 1, 14))
+        let laterPurchase = Support.transaction(day(2026, 10, 14), 312.50, "REMA 1000 STORO")
+        #expect(detect(netflix).map(\.name) == ["Netflix"])
+        #expect(detect(netflix + [laterPurchase]).isEmpty)
+    }
+
+    @Test func aSeriesIsStillRunningUpToOneAndAHalfIntervalsAfterTheLastCharge() {
+        let series = Support.monthly("Fooservice AB", amounts: [100, 100, 100, 100], from: day(2026, 1, 10))
+        // Siste trekk 10. april. 45 dager etter er 25. mai; 46 dager etter er 26. mai.
+        let withinLimit = Support.transaction(day(2026, 5, 25), 50, "Kiosken")
+        let beyondLimit = Support.transaction(day(2026, 5, 26), 50, "Kiosken")
+        #expect(detect(series + [withinLimit]).map(\.name) == ["Fooservice AB"])
+        #expect(detect(series + [beyondLimit]).isEmpty)
+    }
+
+    @Test func anOldStatementIsNotTreatedAsAllEnded() {
+        // Hele utskriften er fra i fjor, men serien varer til slutten av den.
+        let series = Support.monthly("NETFLIX.COM", amounts: [149, 149, 149], from: day(2025, 1, 14))
+        #expect(detect(series, now: day(2026, 10, 20)).map(\.name) == ["Netflix"])
+    }
+
+    // MARK: - Prisendringer
+
+    @Test func aPriceIncreaseInTheMiddleKeepsTheSeriesAndUsesTheLatestPrice() {
+        // Netflix 129 kr og så 149 kr. Regnet mot medianen alene ville +15 % falt utenfor ±10 %.
+        let transactions = Support.monthly("NETFLIX.COM", amounts: [129, 129, 129, 149, 149, 149], from: day(2026, 1, 14))
+        let suggestion = detect(transactions).first
+        #expect(suggestion?.name == "Netflix")
+        #expect(suggestion?.price == 149)
+        #expect(suggestion?.chargeCount == 6)
+        #expect(suggestion?.confidence == .high)
+    }
+
+    @Test func aPriceIncreaseInTheLastMonthKeepsTheSeries() {
+        let transactions = Support.monthly("SPOTIFY.COM", amounts: [119, 119, 119, 119, 139], from: day(2026, 1, 3))
+        let suggestion = detect(transactions).first
+        #expect(suggestion?.name == "Spotify")
+        #expect(suggestion?.price == 139)
+    }
+
+    @Test func aPriceIncreaseForAnUnknownMerchantUsesTheLatestAmount() {
+        let transactions = Support.monthly("Fooservice AB", amounts: [100, 100, 100, 115, 115], from: day(2026, 1, 10))
+        let suggestion = detect(transactions).first
+        #expect(suggestion?.price == 115)
+        #expect(suggestion?.currencyCode == "NOK")
+    }
+
+    @Test func aPriceDropIsAlsoOnePriceChange() {
+        let transactions = Support.monthly("Fooservice AB", amounts: [199, 199, 199, 149, 149], from: day(2026, 1, 10))
+        #expect(detect(transactions).first?.price == 149)
+    }
+
+    @Test func moreThanTwoPriceLevelsAreNotASeries() {
+        let transactions = Support.monthly("Fooservice AB", amounts: [100, 150, 100, 150, 100], from: day(2026, 1, 10))
+        #expect(detect(transactions).isEmpty)
+        let threeLevels = Support.monthly("Barservice AB", amounts: [100, 100, 130, 130, 170, 170], from: day(2026, 1, 10))
+        #expect(detect(threeLevels).isEmpty)
+    }
+
+    @Test func aSingleHugeLastChargeIsNotANewPrice() {
+        let transactions = Support.monthly("Fooservice AB", amounts: [100, 100, 100, 100, 5000], from: day(2026, 1, 10))
+        #expect(detect(transactions).isEmpty)
+    }
+
+    // MARK: - Navn som ligner et eksisterende abonnement
+
+    @Test func similarNamesCountAsExistingSubscriptions() {
+        let telenor = Support.monthly("TELENOR NORGE AS", amounts: [599, 599, 599, 599], from: day(2026, 1, 20))
+        let gym = Support.monthly("Fitness24seven AB 12345", amounts: [399, 399, 399, 399], from: day(2026, 1, 5))
+        let insurance = Support.monthly("GJENSIDIGE FORSIKRING ASA", amounts: [820, 820, 820, 820], from: day(2026, 1, 1))
+        let all = telenor + gym + insurance
+        #expect(detect(all).count == 3)
+        #expect(detect(all, existing: ["Telenor"]).count == 2)
+        #expect(detect(all, existing: ["telenor mobil"]).count == 2)
+        #expect(detect(all, existing: ["Fitness24Seven"]).count == 2)
+        #expect(detect(all, existing: ["Gjensidige"]).count == 2)
+        #expect(detect(all, existing: ["Telenor", "Fitness24Seven", "Gjensidige"]).isEmpty)
+        // Et annet navn er ikke det samme abonnementet.
+        #expect(detect(all, existing: ["Telia", "Fitnessworld", "If forsikring"]).count == 3)
+    }
+
+    // MARK: - Navn uten referansenumre
+
+    @Test func suggestedNamesHaveNoReferenceOrAccountNumbers() {
+        let withReference = Support.monthly("GOOGLE YouTube 1234567", amounts: [169, 169, 169], from: day(2026, 1, 6))
+        let withKid = Support.monthly("Telenor KID 123456789012 Ref 998877", amounts: [599, 599, 599], from: day(2026, 1, 20))
+        let withAccount = Support.monthly("Husleie 1234.56.78901", amounts: [9000, 9000, 9000], from: day(2026, 1, 1))
+        let names = Set(detect(withReference + withKid + withAccount).map(\.name))
+        #expect(names == ["GOOGLE YouTube", "Telenor", "Husleie"])
     }
 
     // MARK: - Foreign currency og katalog
@@ -310,5 +407,35 @@ struct RecurringChargeDetectorTests {
         #expect(subscription?.interval == .monthly)
         #expect(subscription?.kind == .streaming)
         #expect(subscription?.cancelURLString == "https://example.com/avslutt")
+    }
+}
+
+@MainActor
+struct SubscriptionNameMatcherTests {
+
+    @Test(arguments: [
+        ("Telenor", "TELENOR NORGE AS"),
+        ("telenor", "Telenor Norge"),
+        ("Fitness24Seven", "Fitness24seven AB 12345"),
+        ("Gjensidige", "GJENSIDIGE FORSIKRING ASA"),
+        ("Spotify", "SPOTIFYSE"),
+        ("Netflix", "NETFLIX.COM"),
+        ("Åsane Treningssenter", "ASANE TRENINGSSENTER AS"),
+        ("Telenor Mobil", "Telenor Norge AS")
+    ])
+    func similarNamesMatch(first: String, second: String) {
+        #expect(SubscriptionNameMatcher.matches(first, second))
+        #expect(SubscriptionNameMatcher.matches(second, first))
+    }
+
+    @Test(arguments: [
+        ("Telenor", "Telia"),
+        ("Apple Music", "Apple One"),
+        ("Max", "Maxbo"),
+        ("", "Telenor"),
+        ("AS", "Telenor AS")
+    ])
+    func differentNamesDoNotMatch(first: String, second: String) {
+        #expect(!SubscriptionNameMatcher.matches(first, second))
     }
 }

@@ -14,7 +14,9 @@ struct MerchantNormalizerTests {
     @Test(arguments: [
         ("*1234 14.08 NOK 364.80 NETFLIX.COM Kurs: 1.0000", "netflix com"),
         ("*1234 21.04 USD 20.00 CLAUDE.AI SUBSCRIPTION Kurs: 10.0800", "claude ai subscription"),
-        ("Visa 100591 Varekjøp SPOTIFY P3A91B2C", "spotify p3a91b2c"),
+        // Referansen «P3A91B2C» er ulik for hver betaling og tas ikke med.
+        ("Visa 100591 Varekjøp SPOTIFY P3A91B2C", "spotify"),
+        ("Telenor KID 123456789012 Ref 998877", "telenor"),
         ("Varekjøp REMA 1000 STORO Dato 12.09 kl. 10.47", "rema 1000 storo"),
         ("PAYPAL *SPOTIFY", "spotify"),
         ("Vipps*Kiosken", "kiosken"),
@@ -64,9 +66,26 @@ struct MerchantNormalizerTests {
         ("CLAUDE.AI SUBSCRIPTION", "Claude.ai Subscription"),
         ("*1234 14.08 NOK 449.00 Fitness24Seven Kurs: 1.0000", "Fitness24Seven"),
         ("Kari Nordmann", "Kari Nordmann"),
-        ("Visa 100591 Varekjøp Ålesund Treningssenter", "Ålesund Treningssenter")
+        ("Visa 100591 Varekjøp Ålesund Treningssenter", "Ålesund Treningssenter"),
+        ("GOOGLE YouTube 1234567", "GOOGLE YouTube"),
+        ("Telenor Ref 1234567890", "Telenor"),
+        ("TELENOR KID 123456789012", "Telenor"),
+        ("Husleie 1234.56.78901", "Husleie"),
+        ("*1234 Fitness24Seven AB 12345", "Fitness24Seven AB")
     ])
     func displayNameKeepsLettersAndCapitalizesShoutingText(text: String, expected: String) {
         #expect(MerchantNormalizer.displayName(for: text) == expected)
+    }
+
+    // MARK: - Referanser
+
+    @Test(arguments: [
+        ("p3a91b2c", true), ("1234567", true), ("12345", true), ("1234.56.78901", true), ("1a2b3c", true),
+        ("ref", true), ("KID", true), ("Ref:", true), ("kidnr", true),
+        ("Fitness24Seven", false), ("1000", false), ("365", false), ("Netflix", false), ("Claude.ai", false),
+        ("24seven", false), ("b2b", false)
+    ])
+    func recognizesReferenceTokens(token: String, expected: Bool) {
+        #expect(MerchantNormalizer.isReferenceToken(token) == expected)
     }
 }

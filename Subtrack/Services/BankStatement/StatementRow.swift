@@ -31,6 +31,11 @@ nonisolated enum StatementRow {
         if row.contains(where: { StatementLayout.headerKey($0) == "reservert" }) {
             return nil
         }
+        // Betalinger som venter, er avvist eller tilbakeført, er ikke trukket. En avvist betaling som
+        // prøves på nytt dagen etter, ville ellers ødelagt rytmen i en serie.
+        if isNotCompleted(status: cell(layout.statusColumn)) {
+            return nil
+        }
         guard let date = StatementValues.date(from: cell(layout.dateColumn), calendar: calendar) else {
             return nil
         }
@@ -52,6 +57,17 @@ nonisolated enum StatementRow {
         let currencyText = cell(layout.currencyColumn).uppercased()
         let currency = CurrencyConverter.supportedCurrencies.contains(currencyText) ? currencyText : "NOK"
         return StatementTransaction(date: date, amount: amount, currencyCode: currency, text: text)
+    }
+
+    /// Statusverdiene som betyr at betalingen ikke er gjennomført. Andre verdier («COMPLETED», «Booked»,
+    /// «Bokført») og en tom status regnes som gjennomført.
+    private static let notCompletedStatuses: Set<String> = [
+        "pending", "declined", "reverted", "failed", "cancelled", "canceled", "rejected",
+        "venter", "avvist", "avbrutt", "feilet", "tilbakefort", "reservert"
+    ]
+
+    private static func isNotCompleted(status: String) -> Bool {
+        notCompletedStatuses.contains(StatementLayout.headerKey(status))
     }
 
     /// Alle transaksjonene i radene etter overskriftsraden.

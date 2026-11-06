@@ -22,6 +22,9 @@ nonisolated struct StatementLayout: Equatable {
     let textColumn: Int
     let amount: Amount
     let currencyColumn: Int?
+    /// Kolonne med status («State» hos Revolut, «Status» hos Danske Bank), om filen har en. Rader som
+    /// ikke er gjennomført (venter, avvist, tilbakeført), hoppes over.
+    var statusColumn: Int? = nil
 
     // Overskriftene som gjenkjennes, i prioritert rekkefølge og skrevet slik `headerKey` gir dem.
     // «Rentedato» og «Valuteringsdato» er med vilje utelatt: de er ikke datoen varen ble kjøpt.
@@ -37,6 +40,7 @@ nonisolated struct StatementLayout: Equatable {
     private static let outgoingHeaders = ["ut fra konto", "ut", "belop ut", "uttak"]
     private static let incomingHeaders = ["inn pa konto", "inn", "belop inn", "innskudd"]
     private static let currencyHeaders = ["valuta", "currency", "valutakode"]
+    private static let statusHeaders = ["state", "status", "tilstand"]
 
     /// Hvor mange rader i starten det letes etter overskrifter i. Noen banker har linjer foran dem.
     private static let headerSearchLimit = 30
@@ -58,7 +62,8 @@ nonisolated struct StatementLayout: Equatable {
                     dateColumn: date,
                     textColumn: text,
                     amount: amount,
-                    currencyColumn: firstColumn(in: keys, matching: currencyHeaders)
+                    currencyColumn: firstColumn(in: keys, matching: currencyHeaders),
+                    statusColumn: firstColumn(in: keys, matching: statusHeaders)
                 ))
             }
 

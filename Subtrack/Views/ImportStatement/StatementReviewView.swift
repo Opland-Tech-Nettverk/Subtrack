@@ -13,9 +13,10 @@ struct StatementReviewView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    @State private var suggestions: [SubscriptionSuggestion]
-    @State private var selectedIDs: Set<String>
+    @State private var selection: SuggestionSelection
     @State private var editing: EditingSuggestion?
+    /// Settes når «Legg til valgte» er trykket, så et dobbelt trykk ikke legger inn alt to ganger.
+    @State private var isAdding = false
     @State private var addFeedbackTrigger = 0
 
     /// Forslaget som er åpnet i skjemaet. `id` er forslagets, så det kan tas ut av listen etter lagring.
@@ -28,13 +29,8 @@ struct StatementReviewView: View {
         self.analysis = analysis
         self.onChooseAnotherFile = onChooseAnotherFile
         self.onAdded = onAdded
-        _suggestions = State(initialValue: analysis.suggestions)
         // Bare de sikre er huket av på forhånd.
-        _selectedIDs = State(initialValue: Set(analysis.suggestions.filter { $0.confidence == .high }.map(\.id)))
-    }
-
-    private var selectedSuggestions: [SubscriptionSuggestion] {
-        suggestions.filter { selectedIDs.contains($0.id) }
+        _selection = State(initialValue: SuggestionSelection(suggestions: analysis.suggestions))
     }
 
     private var periodText: String {
@@ -56,8 +52,8 @@ struct StatementReviewView: View {
             SubscriptionFormView(draft: item.draft, onSaved: { remove(item.id) })
         }
         // Alle forslag er tatt hånd om i skjemaet; da er det ingenting mer å gjøre her.
-        .onChange(of: suggestions.isEmpty) {
-            if suggestions.isEmpty && !analysis.suggestions.isEmpty {
+        .onChange(of: selection.isEmpty) {
+            if selection.isEmpty && !analysis.suggestions.isEmpty && !isAdding {
                 onAdded()
             }
         }
@@ -101,23 +97,23 @@ struct StatementReviewView: View {
             }
 
             Section {
-                ForEach(suggestions) { suggestion in
+                ForEach(selection.suggestions) { suggestion in
                     row(for: suggestion)
                 }
             } header: {
-                Text("Forslag (\(suggestions.count))")
+                Text("Forslag (\(selection.suggestions.count))")
             } footer: {
                 Text("Sikre forslag er huket av. Trykk på et forslag for å se det og endre det før det legges inn.")
             }
         }
         .safeAreaInset(edge: .bottom) {
             Button(action: addSelected) {
-                Text("Legg til valgte (\(selectedIDs.count))")
+                Text("Legg til valgte (\(selection.selectedCount))")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(selectedIDs.isEmpty)
+            .disabled(selection.selectedCount == 0 || isAdding)
             .padding()
             .frame(maxWidth: 640)
             .background(.bar)
@@ -126,7 +122,7 @@ struct StatementReviewView: View {
     }
 
     private func row(for suggestion: SubscriptionSuggestion) -> some View {
-        let isSelected = selectedIDs.contains(suggestion.id)
+        let isSelected = selection.isSelected(suggestion.id)
         return HStack(spacing: 4) {
             Button {
                 toggle(suggestion)
@@ -157,22 +153,21 @@ struct StatementReviewView: View {
     // MARK: - Handlinger
 
     private func toggle(_ suggestion: SubscriptionSuggestion) {
-        if selectedIDs.contains(suggestion.id) {
-            selectedIDs.remove(suggestion.id)
-        } else {
-            selectedIDs.insert(suggestion.id)
-        }
+        selection.toggle(suggestion.id)
     }
 
     private func remove(_ id: String) {
-        suggestions.removeAll { $0.id == id }
-        selectedIDs.remove(id)
+        selection.remove(id)
     }
 
     /// Legger inn alle valgte forslag, slik skjemaet ville lagret dem uten endringer.
     private func addSelected() {
-        let chosen = selectedSuggestions
+        // Bare ett trykk teller. De valgte tas ut av listen i samme steg, så selv et nytt kall før
+        // arket er lukket, ikke har noe å legge inn.
+        guard !isAdding else { return }
+        let chosen = selection.takeSelected()
         guard !chosen.isEmpty else { return }
+        isAdding = true
         for suggestion in chosen {
             modelContext.insert(suggestion.makeSubscription())
         }

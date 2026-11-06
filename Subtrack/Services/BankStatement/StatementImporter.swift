@@ -1,7 +1,7 @@
 import Foundation
 
 /// Hvorfor en fil ikke kunne gi forslag.
-enum StatementImportError: Error, Equatable {
+nonisolated enum StatementImportError: Error, Equatable {
     /// Filen er tom eller har ingen rader.
     case unreadable
     /// Overskriftene mangler kolonner vi trenger. Navnene står på norsk.
@@ -11,7 +11,7 @@ enum StatementImportError: Error, Equatable {
 }
 
 /// Resultatet av å lese en kontoutskrift: hva som ble lest, og forslagene.
-struct StatementAnalysis: Equatable {
+nonisolated struct StatementAnalysis: Equatable {
     /// Perioder kortere enn dette gir få trekk som kommer igjen. Brukeren får beskjed om det.
     static let shortPeriodDays = 60
 
@@ -28,7 +28,8 @@ struct StatementAnalysis: Equatable {
 
 /// Hele veien fra bytene i en fil til forslag: avkoding, CSV, kolonner, transaksjoner og gjentakende trekk.
 /// Alt skjer i minnet. Ingenting lagres eller logges.
-enum StatementImporter {
+/// `nonisolated` og uten tilstand, så analysen kan kjøres utenfor hovedtråden.
+nonisolated enum StatementImporter {
     static func analyze(
         data: Data,
         catalog: ServiceCatalog = .bundled,

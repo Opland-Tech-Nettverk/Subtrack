@@ -26,22 +26,45 @@ nonisolated enum MerchantNormalizer {
         )
     }
 
-    /// Nøkkelen for gruppering: som `MerchantText.normalized`, men uten lange tall (referanse- og
-    /// kortnumre på fem siffer eller mer), som er ulike for hver betaling.
+    /// Nøkkelen for gruppering: som `MerchantText.normalized`, men uten referanse-, KID- og
+    /// kontonumre, som er ulike for hver betaling.
     static func key(for text: String) -> String {
         MerchantText.normalized(text)
             .split(separator: " ")
-            .filter { token in !(token.count >= 5 && token.allSatisfy { $0.isNumber }) }
+            .filter { !isReferenceToken(String($0)) }
             .joined(separator: " ")
     }
 
+    /// Om et ord ser ut som en referanse, KID eller et kontonummer og ikke som en del av navnet:
+    /// ordene «ref» og «kid», tall på fem siffer eller mer (også med punktum, f.eks. «1234.56.78901»),
+    /// og ord på minst seks tegn med minst tre siffer blandet med bokstaver («p3a91b2c»).
+    /// «Fitness24Seven» og «Rema 1000» er navn og beholdes.
+    static func isReferenceToken(_ token: String) -> Bool {
+        let word = token.lowercased().trimmingCharacters(in: .punctuationCharacters)
+        if ["ref", "kid", "kidnr", "fakt", "faktura", "fakturanr"].contains(word) {
+            return true
+        }
+        let digits = token.filter { $0.isNumber }.count
+        let letters = token.filter { $0.isLetter }.count
+        if letters == 0 {
+            return digits >= 5
+        }
+        return token.count >= 6 && digits >= 3
+    }
+
     /// Navnet til visning. Skrives bare med store bokstaver i banken, gjøres det om til «Stor forbokstav».
+    /// Referanse-, KID- og kontonumre tas ikke med, siden navnet kan bli lagret.
     static func displayName(for text: String) -> String {
-        let cleaned = MerchantText.cleaned(text)
+        let words = MerchantText.cleaned(text)
+            .split(separator: " ")
+            .map(String.init)
+            .filter { word in
+                word.contains { $0.isLetter || $0.isNumber } && !isReferenceToken(word)
+            }
+        let cleaned = words.joined(separator: " ")
         let letters = cleaned.filter { $0.isLetter }
         if !letters.isEmpty, letters == letters.uppercased() {
-            return cleaned
-                .split(separator: " ")
+            return words
                 .map { word in word.prefix(1).uppercased() + word.dropFirst().lowercased() }
                 .joined(separator: " ")
         }

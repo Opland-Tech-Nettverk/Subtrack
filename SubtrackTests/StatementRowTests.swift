@@ -150,6 +150,34 @@ struct StatementRowTests {
         #expect(StatementRow.transaction(from: empty, layout: nordea, calendar: calendar)?.currencyCode == "NOK")
     }
 
+    @Test(arguments: ["PENDING", "DECLINED", "REVERTED", "FAILED", "Pending", "Avvist", "Venter", "Cancelled"])
+    func rowsThatAreNotCompletedAreSkipped(status: String) {
+        let layout = StatementLayout(
+            headerRowIndex: 0,
+            dateColumn: 0,
+            textColumn: 1,
+            amount: .single(column: 2),
+            currencyColumn: nil,
+            statusColumn: 3
+        )
+        let row = ["2026-10-14", "Netflix", "-149.00", status]
+        #expect(StatementRow.transaction(from: row, layout: layout, calendar: calendar) == nil)
+    }
+
+    @Test(arguments: ["COMPLETED", "Booked", "Bokført", ""])
+    func completedRowsAndRowsWithoutStatusAreKept(status: String) {
+        let layout = StatementLayout(
+            headerRowIndex: 0,
+            dateColumn: 0,
+            textColumn: 1,
+            amount: .single(column: 2),
+            currencyColumn: nil,
+            statusColumn: 3
+        )
+        let row = ["2026-10-14", "Netflix", "-149.00", status]
+        #expect(StatementRow.transaction(from: row, layout: layout, calendar: calendar)?.amount == 149)
+    }
+
     @Test func transactionsStartAfterTheHeaderRow() {
         let layout = StatementLayout(
             headerRowIndex: 1,

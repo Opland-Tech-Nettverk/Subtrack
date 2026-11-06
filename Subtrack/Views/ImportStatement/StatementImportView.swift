@@ -20,6 +20,7 @@ struct StatementImportView: View {
 
     private enum Phase {
         case intro
+        case loading
         case review(StatementAnalysis)
         case failed(StatementImportError)
     }
@@ -52,6 +53,11 @@ struct StatementImportView: View {
         switch phase {
         case .intro:
             StatementImportIntroView { isPickingFile = true }
+        case .loading:
+            ProgressView("Leser filen …")
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("importLoading")
         case .review(let analysis):
             StatementReviewView(
                 analysis: analysis,
@@ -72,31 +78,50 @@ struct StatementImportView: View {
         }
     }
 
-    /// Leser filen og finner forslag. Bytene og transaksjonene forsvinner når funksjonen er ferdig;
-    /// bare forslagene og antallet beholdes, i minnet, til skjermen lukkes.
+    /// Leser filen og finner forslag, utenfor hovedtråden mens det vises en fremdriftsindikator. Bytene og
+    /// transaksjonene forsvinner når analysen er ferdig; bare forslagene og antallet beholdes, i minnet,
+    /// til skjermen lukkes. Det som sendes til bakgrunnsoppgaven, er bare verdier (adressen til filen,
+    /// katalogen og navnene), ingenting som hører til hovedaktøren.
     private func read(_ result: Result<URL, Error>) {
         guard case .success(let url) = result else {
             phase = .failed(.unreadable)
             return
         }
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer {
-            if accessing { url.stopAccessingSecurityScopedResource() }
-        }
-        guard let data = try? Data(contentsOf: url) else {
-            phase = .failed(.unreadable)
-            return
-        }
         // Abonnementer som er avsluttet, regnes ikke som eksisterende: trekk som fortsetter, bør vises.
         let existingNames = subscriptions.filter { !$0.isCancelled }.map(\.name)
+        let catalog = ServiceCatalog.bundled
+        let accessing = url.startAccessingSecurityScopedResource()
+        phase = .loading
+        Task {
+            let outcome = await Task.detached(priority: .userInitiated) {
+                Self.analyze(fileAt: url, catalog: catalog, existingNames: existingNames)
+            }.value
+            if accessing { url.stopAccessingSecurityScopedResource() }
+            switch outcome {
+            case .success(let analysis):
+                generation += 1
+                phase = .review(analysis)
+            case .failure(let error):
+                phase = .failed(error)
+            }
+        }
+    }
+
+    /// Selve lesingen. `nonisolated` og statisk, så den ikke fanger noe fra visningen.
+    private nonisolated static func analyze(
+        fileAt url: URL,
+        catalog: ServiceCatalog,
+        existingNames: [String]
+    ) -> Result<StatementAnalysis, StatementImportError> {
+        guard let data = try? Data(contentsOf: url) else {
+            return .failure(.unreadable)
+        }
         do {
-            let analysis = try StatementImporter.analyze(data: data, existingNames: existingNames)
-            generation += 1
-            phase = .review(analysis)
+            return .success(try StatementImporter.analyze(data: data, catalog: catalog, existingNames: existingNames))
         } catch let error as StatementImportError {
-            phase = .failed(error)
+            return .failure(error)
         } catch {
-            phase = .failed(.unreadable)
+            return .failure(.unreadable)
         }
     }
 }

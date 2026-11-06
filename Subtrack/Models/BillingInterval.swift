@@ -2,7 +2,7 @@ import Foundation
 
 /// Hvor ofte et abonnement fornyes. Lagres som rawValue-tekst i `Subscription.billingIntervalCode`.
 /// Codable trengs fortsatt for det utfasede feltet `Subscription.billingInterval`.
-enum BillingInterval: String, Codable, CaseIterable, Identifiable {
+nonisolated enum BillingInterval: String, Codable, CaseIterable, Identifiable {
     case weekly
     case monthly
     case quarterly

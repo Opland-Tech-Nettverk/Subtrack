@@ -1,7 +1,7 @@
 import Foundation
 
 /// En fast prisplan for en tjeneste i katalogen, f.eks. «Standard 149 kr/mnd».
-struct CatalogPlan: Decodable, Equatable, Identifiable {
+nonisolated struct CatalogPlan: Decodable, Equatable, Identifiable {
     let label: String
     /// Leses fra en tekst i JSON ("149.00", punktum som desimaltegn) så beløpet ikke rundes av via `Double`.
     let price: Decimal
@@ -11,7 +11,7 @@ struct CatalogPlan: Decodable, Equatable, Identifiable {
 }
 
 // `init(from:)` står i en utvidelse så den automatiske medlemsvise initialisereren beholdes.
-extension CatalogPlan {
+nonisolated extension CatalogPlan {
     private enum CodingKeys: String, CodingKey {
         case label, price, currencyCode, interval
     }
@@ -40,7 +40,7 @@ extension CatalogPlan {
 }
 
 /// En kjent tjeneste med navn, utseende, avslutningslenke og vanlige priser.
-struct CatalogService: Decodable, Equatable, Identifiable {
+nonisolated struct CatalogService: Decodable, Equatable, Identifiable {
     /// Fast ID med små bokstaver, f.eks. "netflix" eller "tv2-play".
     let id: String
     let name: String
@@ -71,15 +71,15 @@ struct CatalogService: Decodable, Equatable, Identifiable {
 }
 
 /// Et treff i katalogen for en tekst fra kontoutskrift eller kvittering.
-struct CatalogMatch: Equatable {
+nonisolated struct CatalogMatch: Equatable {
     /// `.high` når aliaset som traff er langt nok til at det neppe er tilfeldig (minst 5 tegn).
-    enum Confidence: Equatable { case high, medium }
+    nonisolated enum Confidence: Equatable { case high, medium }
     let service: CatalogService
     let confidence: Confidence
 }
 
 /// Katalogen over kjente tjenester. Rene funksjoner for søk og gjenkjenning.
-struct ServiceCatalog: Decodable, Equatable {
+nonisolated struct ServiceCatalog: Decodable, Equatable {
     /// Datoen prisene sist ble sjekket, "yyyy-MM-dd".
     let pricesCheckedDate: String
     let services: [CatalogService]

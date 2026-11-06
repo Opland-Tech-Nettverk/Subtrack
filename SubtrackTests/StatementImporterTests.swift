@@ -112,6 +112,60 @@ struct StatementImporterTests {
         }
     }
 
+    @Test func revolutRowsThatAreDeclinedRevertedOrPendingAreIgnored() throws {
+        let text = StatementDecoder.decode(try Support.fixtureData("revolut.csv"))
+        for state in ["DECLINED", "REVERTED", "PENDING"] {
+            #expect(text.contains(",\(state),"), "\(state) mangler i testfilen")
+        }
+        let analysis = try analyze("revolut.csv")
+        // Netflix 7 og Spotify 6 trekk: de tre ikke gjennomførte radene er ikke med, og rytmen er hel.
+        #expect(analysis.transactionCount == 58)
+        #expect(analysis.periodEnd == Support.day(2026, 10, 14))
+        let byName = Dictionary(uniqueKeysWithValues: analysis.suggestions.map { ($0.name, $0) })
+        #expect(byName["Netflix"]?.chargeCount == 7)
+        #expect(byName["Spotify"]?.chargeCount == 6)
+    }
+
+    @Test func theAnalysisCanRunOffTheMainActor() async throws {
+        let data = try Support.fixtureData("dnb.txt")
+        let catalog = Support.catalog
+        let now = Support.now
+        let calendar = Support.calendar
+        let analysis = try await Task.detached { () throws -> StatementAnalysis in
+            #expect(!Thread.isMainThread)
+            return try StatementImporter.analyze(
+                data: data,
+                catalog: catalog,
+                existingNames: [],
+                now: now,
+                calendar: calendar
+            )
+        }.value
+        #expect(analysis.transactionCount == 58)
+        #expect(analysis.suggestions.count == 3)
+    }
+
+    @Test func aLargeStatementIsReadInOnePass() throws {
+        var lines = ["Dato;Tekst;Beløp"]
+        for index in 0..<3000 {
+            let day = 1 + index % 28
+            let month = 1 + (index / 28) % 12
+            lines.append(String(format: "%02d.%02d.2026;Varekjøp BUTIKK %d Dato 12.09 kl. 10.47;-%d,50", day, month, index % 40, 100 + index % 300))
+        }
+        for month in 1...12 {
+            lines.append(String(format: "14.%02d.2026;*1234 14.%02d NOK 149.00 NETFLIX.COM Kurs: 1.0000;-149,00", month, month))
+        }
+        let data = Data(lines.joined(separator: "\n").utf8)
+        let analysis = try StatementImporter.analyze(
+            data: data,
+            catalog: Support.catalog,
+            now: Support.now,
+            calendar: Support.calendar
+        )
+        #expect(analysis.transactionCount == 3012)
+        #expect(analysis.suggestions.contains { $0.name == "Netflix" && $0.chargeCount == 12 })
+    }
+
     // MARK: - Feil og grensetilfeller
 
     @Test func throwsWhenTheFileIsEmpty() {
