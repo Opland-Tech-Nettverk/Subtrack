@@ -14,13 +14,13 @@ struct RecurringChargeDetectorTests {
     private func detect(
         _ transactions: [StatementTransaction],
         existing: [String] = [],
-        now: Date = Support.now
+        now: Date? = nil
     ) -> [SubscriptionSuggestion] {
         RecurringChargeDetector.detect(
             transactions: transactions,
             catalog: Support.catalog,
             existingNames: existing,
-            now: now,
+            now: now ?? Support.now,
             calendar: Support.calendar
         )
     }
