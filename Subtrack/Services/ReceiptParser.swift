@@ -100,7 +100,7 @@ nonisolated enum ReceiptParser {
         // Bare sikre treff i resten av teksten, og bare hvis alle treffene er samme tjeneste.
         var found: [CatalogService] = []
         for line in lines {
-            guard let match = catalog.match(merchantText: line), match.confidence == .high else { continue }
+            guard let match = catalog.match(merchantText: line), case .high = match.confidence else { continue }
             if !found.contains(where: { $0.id == match.service.id }) {
                 found.append(match.service)
             }
@@ -583,10 +583,11 @@ extension ReceiptParser {
     @MainActor
     static func draft(
         fromReceiptText text: String,
-        catalog: ServiceCatalog = .bundled,
+        catalog: ServiceCatalog? = nil,
         now: Date = Date(),
         calendar: Calendar = .current
     ) async -> SubscriptionDraft {
+        let catalog = catalog ?? ServiceCatalog.bundled
         let rules = parse(text, catalog: catalog, now: now, calendar: calendar)
         let fields = await ReceiptEnrichment.enrich(rules, text: text, catalog: catalog, now: now, calendar: calendar)
         return fields.draft(catalog: catalog)

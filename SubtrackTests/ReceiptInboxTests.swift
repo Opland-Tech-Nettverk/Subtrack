@@ -43,6 +43,7 @@ struct ReceiptInboxTests {
         return url
     }
 
+    @discardableResult
     private func writeRaw(_ text: String, named name: String, in directory: URL, modified: Date? = nil) throws -> URL {
         try makeDirectory(directory)
         let url = directory.appendingPathComponent(name)

@@ -244,7 +244,7 @@ enum FoundationModelsReceiptReader {
             let response = try await session.respond(
                 to: "Receipt text:\n\(input)",
                 generating: ReceiptModelResponse.self,
-                options: GenerationOptions(sampling: .greedy, maximumResponseTokens: 200)
+                options: GenerationOptions(temperature: 0, maximumResponseTokens: 200)
             )
             let content = response.content
             return ReceiptEnrichment.candidate(
