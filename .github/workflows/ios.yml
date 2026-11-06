@@ -284,6 +284,8 @@ jobs:
             -default-test-execution-time-allowance 240 \
             -maximum-test-execution-time-allowance 700 \
             -parallel-testing-enabled NO \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
             -resultBundlePath "$RUNNER_TEMP/ui.xcresult" \
             CODE_SIGNING_ALLOWED=NO
 
