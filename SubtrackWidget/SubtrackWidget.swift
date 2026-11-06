@@ -8,6 +8,8 @@ import UIKit
 struct UpcomingRenewal: Codable, Identifiable {
     let name: String
     let price: Decimal
+    /// Brukerens del av trekket. Valgfri så data fra eldre app-versjoner fortsatt kan leses.
+    var share: Decimal? = nil
     let currencyCode: String
     let symbolName: String
     /// Valgfri så data skrevet av eldre app-versjoner fortsatt kan leses.
@@ -17,6 +19,9 @@ struct UpcomingRenewal: Codable, Identifiable {
     let isTrialEnd: Bool?
 
     var id: String { "\(name)-\(renewalDate.timeIntervalSince1970)" }
+
+    /// Beløpet widgeten viser og summerer: brukerens del, ellers hele prisen.
+    var amount: Decimal { share ?? price }
 
     var color: Color {
         colorHex.flatMap(Color.palette(hex:)) ?? .accentColor
@@ -132,7 +137,7 @@ struct Provider: TimelineProvider {
         var monthSum: MonthSum?
         if currencies.count == 1, let currencyCode = currencies.first {
             monthSum = MonthSum(
-                amount: thisMonth.reduce(Decimal(0)) { $0 + $1.price },
+                amount: thisMonth.reduce(Decimal(0)) { $0 + $1.amount },
                 currencyCode: currencyCode,
                 count: thisMonth.count
             )
@@ -247,6 +252,7 @@ struct SubtrackWidgetEntryView: View {
 
 /// Det neste trekket, stort: ikon, navn, beløp og når det trekkes. Med summen for måneden nederst i den lille widgeten.
 private struct NextCharge: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let renewal: UpcomingRenewal
     let referenceDate: Date
     let monthSum: MonthSum?
@@ -268,12 +274,12 @@ private struct NextCharge: View {
                         .lineLimit(1)
                 }
             }
-            Text(renewal.price.formatted(.currency(code: renewal.currencyCode).precision(.fractionLength(0...2))))
+            Text(renewal.amount.formatted(.currency(code: renewal.currencyCode).precision(.fractionLength(0...2))))
                 .font(.system(.title2, design: .rounded, weight: .bold).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Spacer(minLength: 0)
-            if monthSum != nil {
+            if monthSum != nil, dynamicTypeSize < .xLarge {
                 MonthFooter(monthSum: monthSum)
             }
         }
@@ -299,7 +305,7 @@ private struct CompactRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
-            Text(renewal.price.formatted(.currency(code: renewal.currencyCode).precision(.fractionLength(0...2))))
+            Text(renewal.amount.formatted(.currency(code: renewal.currencyCode).precision(.fractionLength(0...2))))
                 .font(.system(.footnote, design: .rounded, weight: .semibold).monospacedDigit())
                 .lineLimit(1)
         }

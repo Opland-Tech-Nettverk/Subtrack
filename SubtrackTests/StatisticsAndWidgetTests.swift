@@ -98,7 +98,7 @@ struct WidgetSnapshotStoreTests {
             Subscription(name: "Netflix", price: 149, nextRenewalDate: inDays(3))
         ])
 
-        #expect(renewals.count == 2 * WidgetSnapshotStore.occurrencesPerSubscription)
+        #expect(renewals.count >= 2 * WidgetSnapshotStore.occurrencesPerSubscription)
         #expect(renewals.map(\.renewalDate) == renewals.map(\.renewalDate).sorted())
         #expect(renewals.first?.name == "Netflix")
     }
@@ -118,7 +118,61 @@ struct WidgetSnapshotStoreTests {
         let renewals = WidgetSnapshotStore.renewals(for: [
             Subscription(name: "Prøve", price: 99, nextRenewalDate: trialEnd, trialEndDate: trialEnd)
         ])
-        #expect(renewals.map(\.isTrialEnd) == [true, false, false])
+        #expect(renewals.count >= WidgetSnapshotStore.occurrencesPerSubscription)
+        #expect(renewals.first?.isTrialEnd == true)
+        #expect(renewals.dropFirst().allSatisfy { !$0.isTrialEnd })
+    }
+
+    /// Mandag 2. november 2026 kl. 9, i UTC så testen ikke avhenger av maskinens tidssone.
+    private var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    private func utcDate(_ year: Int, _ month: Int, _ day: Int, hour: Int = 12) -> Date {
+        utc.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
+    }
+
+    @Test func weeklySubscriptionsGetEveryChargeUntilTheEndOfNextMonth() {
+        // Ukentlig fra 1. november: 1., 8., 15., 22. og 29. november, og fire i desember.
+        let now = utcDate(2026, 11, 1, hour: 9)
+        let weekly = Subscription(
+            name: "Ukentlig", price: 700, billingInterval: .weekly, nextRenewalDate: utcDate(2026, 11, 1)
+        )
+
+        let renewals = WidgetSnapshotStore.renewals(for: [weekly], now: now, calendar: utc)
+
+        #expect(renewals.count == 9)
+        let november = renewals.filter { utc.component(.month, from: $0.renewalDate) == 11 }
+        #expect(november.count == 5)
+        #expect(renewals.allSatisfy { $0.renewalDate <= utcDate(2026, 12, 31) })
+    }
+
+    @Test func monthlySubscriptionsKeepAtLeastThreeCharges() {
+        let monthly = Subscription(name: "Månedlig", price: 100, nextRenewalDate: utcDate(2026, 11, 20))
+        let renewals = WidgetSnapshotStore.renewals(
+            for: [monthly], now: utcDate(2026, 11, 1, hour: 9), calendar: utc
+        )
+        #expect(renewals.count == WidgetSnapshotStore.occurrencesPerSubscription)
+    }
+
+    @Test func storesTheUsersShareOfASharedSubscription() {
+        let shared = Subscription(
+            name: "Spotify Familie", price: 279, nextRenewalDate: inDays(4), splitCount: 3
+        )
+        let renewals = WidgetSnapshotStore.renewals(for: [shared])
+        #expect(renewals.allSatisfy { $0.share == 93 })
+        #expect(renewals.allSatisfy { $0.price == 279 })
+    }
+
+    @Test func oldSnapshotsWithoutShareStillDecode() throws {
+        let json = """
+        [{"name":"Netflix","price":149,"currencyCode":"NOK","symbolName":"play.tv",\
+        "renewalDate":0,"isTrialEnd":false}]
+        """
+        let decoded = try JSONDecoder().decode([WidgetSnapshotStore.UpcomingRenewal].self, from: Data(json.utf8))
+        #expect(decoded.first?.share == nil)
     }
 
     @Test func usesTheCategoryIconWhenNoCustomIconIsSet() {
@@ -138,6 +192,6 @@ struct WidgetSnapshotStoreTests {
         let objects = try #require(try JSONSerialization.jsonObject(with: data) as? [[String: Any]])
         let keys = Set(try #require(objects.first).keys)
 
-        #expect(keys == ["name", "price", "currencyCode", "symbolName", "colorHex", "renewalDate", "isTrialEnd"])
+        #expect(keys == ["name", "price", "share", "currencyCode", "symbolName", "colorHex", "renewalDate", "isTrialEnd"])
     }
 }
