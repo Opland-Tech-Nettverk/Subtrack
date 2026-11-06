@@ -258,15 +258,113 @@ struct ReceiptParserTests {
         #expect(fields.catalogServiceID == "netflix")
     }
 
-    @Test func matchableLinesDropRecipientsAndAddresses() {
+    @Test func matchableLinesRemoveAddressesButKeepTheRestOfTheLine() {
         let lines = ReceiptParser.matchableLines([
-            "Til: ola@icloud.com", "To: ola@icloud.com", "Cc: kari@icloud.com",
+            "Til: ola@icloud.com", "To: Viaplay Norge AS <ola@gmail.com>", "Cc: kari@icloud.com",
             "Apple-ID: ola@icloud.com", "Fra: Netflix <info@mailer.netflix.com>"
         ])
 
-        #expect(lines.count == 2)
-        #expect(!lines[0].contains("icloud"))
-        #expect(lines[1].contains("mailer.netflix.com"))
+        #expect(lines.count == 5)
+        #expect(lines.dropLast().allSatisfy { !$0.contains("icloud") && !$0.contains("gmail") && !$0.contains("@") })
+        #expect(lines[1].contains("Viaplay Norge AS"))
+        #expect(lines[4].contains("mailer.netflix.com"))
+    }
+
+    @Test func personalMailDomainsAreDroppedFromSenderLines() {
+        let lines = ReceiptParser.matchableLines([
+            "Fra: Ola <ola@icloud.com>", "From: Ola <ola@Gmail.com>", "Fra: Ola <ola@mail.me.com>",
+            "Fra: Ola <ola@online.no>", "Fra: Apple <no_reply@email.apple.com>"
+        ])
+
+        #expect(lines.dropLast().allSatisfy { !$0.lowercased().contains(".com") && !$0.contains(".no") })
+        #expect(lines[4].contains("email.apple.com"))
+    }
+
+    @Test func forwardedReceiptFromTheUsersOwnICloudMailboxMatchesTheServiceNotICloud() {
+        let fields = parse("""
+        Fra: Ola Nordmann <ola@icloud.com>
+        Emne: Videresendt: Din kvittering fra Podimo
+
+        Podimo
+        Premium
+        Totalt 99,00 kr
+        """)
+
+        #expect(fields.catalogServiceID == "podimo")
+    }
+
+    @Test func forwardedReceiptForANonCatalogServiceIsNotICloud() {
+        let fields = parse("""
+        Fra: Ola Nordmann <ola@icloud.com>
+        Emne: Videresendt: kvittering
+
+        Brannvakt Pluss
+        Totalt 99,00 kr
+        """)
+
+        #expect(fields.catalogServiceID == nil)
+    }
+
+    @Test func realICloudReceiptFromAppleDotComStillMatches() {
+        let fields = parse("""
+        Fra: Apple <no_reply@email.apple.com>
+        Emne: Din kvittering fra Apple
+
+        iCloud+
+        200 GB (Månedlig)
+        Totalt 39,00 kr
+        """)
+
+        #expect(fields.catalogServiceID == "icloud")
+    }
+
+    @Test func recipientLineWithAServiceNameIsKeptForMatching() {
+        // Vipps- og bankbekreftelser har tjenesten på «Til:»-linjen.
+        let fields = parse("""
+        Betaling bekreftet
+        Til: Viaplay Norge AS
+        Fra: ola@icloud.com
+        Beløp: 169,00 kr
+        """)
+
+        #expect(fields.catalogServiceID == "viaplay")
+    }
+
+    // MARK: - 12 måneder er ikke alltid årlig
+
+    @Test(arguments: [
+        "Bindingstid: 12 måneder",
+        "12 mnd binding",
+        "Gratis i 12 måneder",
+        "12 months free",
+        "Prisgaranti i 12 måneder",
+        "Kampanje: for 12 måneder",
+        "Medlemskap 449 kr (12 mnd binding)",
+        "(12 months free)"
+    ])
+    func bindingAndFreePeriodsAreNotYearly(text: String) {
+        #expect(ReceiptParser.interval(in: text) == nil)
+    }
+
+    @Test(arguments: [
+        "Totalt 1 188 kr (12 måneder)",
+        "1 188 kr per 12 mnd",
+        "1 188 kr / 12 mnd",
+        "Billed 12 months in advance",
+        "Totalt for 12 måneder"
+    ])
+    func twelveMonthsAttachedToAPriceIsYearly(text: String) {
+        #expect(ReceiptParser.interval(in: text) == .yearly)
+    }
+
+    @Test func membershipWithBindingPeriodHasNoInterval() {
+        let fields = parse("""
+        Medlemsavgift 449 kr
+        Bindingstid: 12 måneder
+        """)
+
+        #expect(fields.price == Decimal(string: "449"))
+        #expect(fields.interval == nil)
     }
 
     // MARK: - Intervall og beløp hører sammen (fix 4)

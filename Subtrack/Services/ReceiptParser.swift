@@ -122,22 +122,36 @@ nonisolated enum ReceiptParser {
         return (firstLineName(lines: allLines), nil)
     }
 
-    private static let recipientKeys = ["til:", "to:", "cc:", "bcc:", "kopi:"]
     private static let senderKeys = ["fra:", "from:", "avsender:"]
     private static let emailAddress = regex(#"[^\s<>"'(),;:]+@([^\s<>"'(),;]+)"#)
 
-    /// Linjene som katalogen får se: uten mottakerlinjer (Til, To, Cc), og uten e-postadresser. På avsenderlinjer
-    /// beholdes domenet («info@mailer.netflix.com» gir «mailer.netflix.com»), ellers fjernes hele adressen.
+    /// Postkassedomener folk har selv. En videresendt kvittering har brukerens egen adresse som avsender, og
+    /// «icloud.com» ville truffet iCloud+. Ekte iCloud+-kvitteringer kommer fra apple.com.
+    private static let personalMailDomains = [
+        "icloud.com", "me.com", "mac.com", "gmail.com", "googlemail.com", "outlook.com", "hotmail.com",
+        "live.com", "yahoo.com", "online.no", "proton.me", "protonmail.com"
+    ]
+
+    private static func isPersonalMailDomain(_ domain: String) -> Bool {
+        let host = domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ". >"))
+        return personalMailDomains.contains { host == $0 || host.hasSuffix("." + $0) }
+    }
+
+    /// Linjene som katalogen får se: uten e-postadresser. Resten av linjen beholdes, også `Til: Viaplay Norge AS`
+    /// i en Vipps- eller bankbekreftelse. På avsenderlinjer beholdes domenet («info@mailer.netflix.com» gir
+    /// «mailer.netflix.com»), men ikke når det er et personlig postkassedomene.
     static func matchableLines(_ lines: [String]) -> [String] {
-        lines.compactMap { line in
-            let lower = line.lowercased()
-            if recipientKeys.contains(where: { lower.hasPrefix($0) }) { return nil }
-            let keepDomain = senderKeys.contains { lower.hasPrefix($0) }
-            return emailAddress.stringByReplacingMatches(
-                in: line,
-                range: NSRange(line.startIndex..., in: line),
-                withTemplate: keepDomain ? "$1" : " "
-            )
+        lines.map { line in
+            let keepDomain = senderKeys.contains { line.lowercased().hasPrefix($0) }
+            var result = line
+            let matches = emailAddress.matches(in: line, range: NSRange(line.startIndex..., in: line))
+            for match in matches.reversed() {
+                guard let whole = Range(match.range, in: result), let domainRange = Range(match.range(at: 1), in: line) else { continue }
+                let domain = String(line[domainRange])
+                let replacement = keepDomain && !isPersonalMailDomain(domain) ? domain : " "
+                result.replaceSubrange(whole, with: replacement)
+            }
+            return result
         }
     }
 
@@ -448,7 +462,7 @@ nonisolated enum ReceiptParser {
             #"\b(?:kvartalsvis\w*|hvert kvartal|per kvartal|quarterly|each quarter|per quarter|every (?:3|three) months|every 3 mo|hver (?:3\.?|tredje) måned)\b|/ ?kvartal\b"#
         )),
         (.yearly, regex(
-            #"\b(?:årlig\w*|årsabonnement\w*|årspris\w*|hvert år|per år|pr\.? år|annual|annually|yearly|every year|each year|per year|12 ?(?:måneder|mnd\.?|md\.?|months|mths))\b|/ ?(?:år|year|yr)\b|\d ?(?:kr|nok|usd|eur|gbp|sek|dkk|[€$£])? ?a year\b"#
+            #"\b(?:årlig\w*|årsabonnement\w*|årspris\w*|hvert år|per år|pr\.? år|annual|annually|yearly|every year|each year|per year)\b|/ ?(?:år|year|yr)\b|\d ?(?:kr|nok|usd|eur|gbp|sek|dkk|[€$£])? ?a year\b"#
         ))
     ]
 
@@ -462,7 +476,32 @@ nonisolated enum ReceiptParser {
     static func intervalsMentioned(in text: String) -> [BillingInterval] {
         let lower = text.lowercased()
         let range = NSRange(lower.startIndex..., in: lower)
-        return intervalRules.filter { $0.1.firstMatch(in: lower, range: range) != nil }.map(\.0)
+        var found = intervalRules.filter { $0.1.firstMatch(in: lower, range: range) != nil }.map(\.0)
+        if !found.contains(.yearly), mentionsTwelveMonthBilling(in: lower) {
+            found.append(.yearly)
+        }
+        return found
+    }
+
+    /// «per 12 mnd», «(12 måneder)», «for 12 måneder», «billed 12 months». Teller ikke når «binding», «gratis»,
+    /// «free», «garanti», «kampanje» (eller prøveperiode) står like før eller etter: «Bindingstid: 12 måneder» og
+    /// «12 months free» sier ikke hvor ofte det trekkes.
+    private static let twelveMonths = regex(
+        #"(?:\bper|\bpr\.?|/|\(|\bfor|\bbilled) ?12 ?(?:måneder|mnd\.?|md\.?|months|mths)\b"#
+    )
+    private static let bindingWords = regex(#"binding|gratis|\bfree\b|garanti|kampanje|prøve|trial"#)
+
+    private static func mentionsTwelveMonthBilling(in lower: String) -> Bool {
+        let ns = lower as NSString
+        for match in twelveMonths.matches(in: lower, range: NSRange(location: 0, length: ns.length)) {
+            let start = max(0, match.range.location - 25)
+            let end = min(ns.length, match.range.location + match.range.length + 30)
+            let around = ns.substring(with: NSRange(location: start, length: end - start))
+            if bindingWords.firstMatch(in: around, range: NSRange(location: 0, length: (around as NSString).length)) == nil {
+                return true
+            }
+        }
+        return false
     }
 
     // MARK: - Dato
