@@ -12,8 +12,10 @@ struct DraftSheetTrackerTests {
     @Test func startsFreeAndHasNothingToFinish() {
         var tracker = DraftSheetTracker()
 
+        let finished = tracker.dismissed()
+
         #expect(tracker.isFree)
-        #expect(tracker.dismissed() == nil)
+        #expect(finished == nil)
     }
 
     @Test func aSheetThatHasBeenPresentedBlocksTheNextUntilItIsFullyDismissed() {
@@ -30,7 +32,8 @@ struct DraftSheetTrackerTests {
         let shown = draft("A")
         tracker.presented(shown)
 
-        let finished = try #require(tracker.dismissed())
+        let result = tracker.dismissed()
+        let finished = try #require(result)
 
         #expect(finished.id == shown.id)
         #expect(tracker.isFree)
@@ -45,12 +48,14 @@ struct DraftSheetTrackerTests {
         tracker.presented(a)
         #expect(!tracker.isFree, "B skal ikke vises mens A lukkes")
 
-        let finishedByA = try #require(tracker.dismissed())
+        let dismissedA = tracker.dismissed()
+        let finishedByA = try #require(dismissedA)
         #expect(finishedByA.id == a.id)
 
         #expect(tracker.isFree)
         tracker.presented(b)
-        let finishedByB = try #require(tracker.dismissed())
+        let dismissedB = tracker.dismissed()
+        let finishedByB = try #require(dismissedB)
         #expect(finishedByB.id == b.id)
     }
 
@@ -58,8 +63,11 @@ struct DraftSheetTrackerTests {
         var tracker = DraftSheetTracker()
         tracker.presented(draft("A"))
 
-        #expect(tracker.dismissed() != nil)
-        #expect(tracker.dismissed() == nil)
+        let first = tracker.dismissed()
+        let second = tracker.dismissed()
+
+        #expect(first != nil)
+        #expect(second == nil)
     }
 
     @Test func aFailedSaveKeepsTheFileEvenThoughTheSheetCloses() {
@@ -67,8 +75,9 @@ struct DraftSheetTrackerTests {
         tracker.presented(draft("A"))
 
         tracker.saveFailed()
+        let finished = tracker.dismissed()
 
-        #expect(tracker.dismissed() == nil)
+        #expect(finished == nil)
         #expect(tracker.isFree)
     }
 
@@ -81,6 +90,8 @@ struct DraftSheetTrackerTests {
         let b = draft("B")
         tracker.presented(b)
 
-        #expect(try #require(tracker.dismissed()).id == b.id)
+        let result = tracker.dismissed()
+        let finished = try #require(result)
+        #expect(finished.id == b.id)
     }
 }
