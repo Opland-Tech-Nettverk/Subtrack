@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @Environment(ExchangeRateStore.self) private var exchangeRates
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @State private var isImportingStatement = false
 
     var body: some View {
         NavigationStack {
@@ -41,6 +42,19 @@ struct SettingsView: View {
                 } footer: {
                     Text(glassFooter)
                 }
+
+                Section {
+                    Button {
+                        isImportingStatement = true
+                    } label: {
+                        Label("Importer fra kontoutskrift", systemImage: "doc.text.magnifyingglass")
+                    }
+                    .accessibilityIdentifier("settingsImportStatement")
+                } header: {
+                    Text("Import")
+                } footer: {
+                    Text("Finn abonnementer i en kontoutskrift fra nettbanken. Filen leses bare på telefonen og lagres ikke.")
+                }
             }
             .navigationTitle("Innstillinger")
             .navigationBarTitleDisplayMode(.inline)
@@ -48,6 +62,10 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Ferdig") { dismiss() }
                 }
+            }
+            // Når forslag er lagt inn, lukkes også Innstillinger, så brukeren ser dem i oversikten.
+            .sheet(isPresented: $isImportingStatement) {
+                StatementImportView(onAdded: { dismiss() })
             }
         }
     }

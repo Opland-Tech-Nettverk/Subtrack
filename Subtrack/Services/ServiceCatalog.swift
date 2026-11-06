@@ -265,9 +265,32 @@ nonisolated enum MerchantText {
             .joined(separator: " ")
     }
 
+    /// Som `normalized`, men beholder store og små bokstaver og diakritiske tegn, så resultatet kan
+    /// vises som navn, f.eks. "Fitness24Seven" fra "*1234 14.08 NOK 449.00 Fitness24Seven Kurs: 1.0000".
+    /// Tegnsetting i endene fjernes, og mellomrom slås sammen.
+    static func cleaned(_ text: String) -> String {
+        var result = text
+        for expression in caseInsensitiveRemovals {
+            result = expression.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: " "
+            )
+        }
+        return result
+            .split { $0.isWhitespace }
+            .joined(separator: " ")
+            .trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+    }
+
     /// Mønstre for det bankene legger rundt mottakernavnet. Brukes i denne rekkefølgen,
     /// på tekst som allerede har små bokstaver og er uten diakritiske tegn (unntatt æ og ø).
-    private static let removals: [NSRegularExpression] = {
+    private static let removals: [NSRegularExpression] = compiledRemovals(options: [])
+
+    /// De samme mønstrene på tekst med de originale bokstavene.
+    private static let caseInsensitiveRemovals: [NSRegularExpression] = compiledRemovals(options: [.caseInsensitive])
+
+    private static func compiledRemovals(options: NSRegularExpression.Options) -> [NSRegularExpression] {
         let number = #"\d+(?:[.,]\d+)*"#
         let currencies = CurrencyConverter.supportedCurrencies
             .map { $0.lowercased() }
@@ -293,6 +316,6 @@ nonisolated enum MerchantText {
             #"\b(?:paypal|vipps)\s*\*"#
         ]
         // Mønstrene er faste og dekket av tester, så en feil her er en programmeringsfeil.
-        return patterns.map { try! NSRegularExpression(pattern: $0) }
-    }()
+        return patterns.map { try! NSRegularExpression(pattern: $0, options: options) }
+    }
 }
