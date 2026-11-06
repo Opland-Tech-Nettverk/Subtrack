@@ -163,6 +163,7 @@ private struct DayDot: View {
         }
         .buttonStyle(.plain)
         .disabled(!day.hasCharges)
+        .accessibilityHidden(!day.hasCharges)
         .accessibilityLabel(accessibilityText)
         .accessibilityHint(day.hasCharges ? "Viser trekkene denne dagen." : "")
         .accessibilityAddTraits(isSelected ? .isSelected : [])

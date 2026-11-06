@@ -62,7 +62,9 @@ struct StatisticsViewModel {
                     monthlyCost: subscriptions.reduce(Decimal(0)) { $0 + $1.monthlyCost }
                 )
             }
-            .sorted { $0.monthlyCost > $1.monthlyCost }
+            .sorted { lhs, rhs in
+                lhs.monthlyCost == rhs.monthlyCost ? lhs.category.rawValue < rhs.category.rawValue : lhs.monthlyCost > rhs.monthlyCost
+            }
     }
 
     /// Kategoriene med andel i hele prosent som summerer til 100, dyrest først.

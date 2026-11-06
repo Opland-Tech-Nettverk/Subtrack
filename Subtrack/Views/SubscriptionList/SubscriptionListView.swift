@@ -452,6 +452,8 @@ struct SubscriptionListView: View {
         let name = subscription.name
         // Samme verdi i modellen og i banneret, så banneret kjenner igjen akkurat denne avslutningen.
         let now = Date.now
+        // Arkiveres det fra skjemaet åpnet på detaljsiden, ligger banneret på listen: gå tilbake dit først.
+        if selectedSubscription === subscription { selectedSubscription = nil }
         withAnimation(.smooth) {
             subscription.cancelledDate = now
             archiveNotice = ArchiveNotice(subscription: subscription, name: name, cancelledDate: now)

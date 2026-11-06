@@ -8,6 +8,7 @@ struct CalendarView: View {
     @AppStorage(AppSettingsKeys.mainCurrency) private var mainCurrency = AppSettingsKeys.defaultMainCurrency
     @Environment(ExchangeRateStore.self) private var exchangeRates
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Starten av måneden som vises.
     @State private var month = MonthGrid.monthStart(offsetBy: 0, from: .now)
@@ -89,7 +90,7 @@ struct CalendarView: View {
                             charges: byDay[day] ?? [],
                             isSelected: day == selectedDay
                         ) {
-                            withAnimation(.smooth) {
+                            withAnimation(reduceMotion ? nil : .smooth) {
                                 selectedDay = selectedDay == day ? nil : day
                             }
                         }
@@ -213,7 +214,7 @@ struct CalendarView: View {
             SectionTitle(title: title, trailing: count == 0 ? nil : Money.string(total, code: mainCurrency, whole: true))
             if selectedDay != nil {
                 Button("Vis hele måneden") {
-                    withAnimation(.smooth) { selectedDay = nil }
+                    withAnimation(reduceMotion ? nil : .smooth) { selectedDay = nil }
                 }
                 .font(.subheadline)
                 .frame(minHeight: 44, alignment: .leading)

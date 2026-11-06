@@ -65,7 +65,7 @@ struct SummaryHeaderView: View {
     }
 
     private var background: some View {
-        let opacities: [Double] = [0.28, 0.2, 0.12]
+        let opacities: [Double] = [0.2, 0.15, 0.1]
         let stops = gradientColors.enumerated().map { index, color in
             color.opacity(opacities[min(index, opacities.count - 1)])
         }
